@@ -603,7 +603,9 @@ pleuckerMap(FlMatchingField) := MF -> (
     MF.cache.pleuckerRingMap
     )
 
--- matching field from permutations
+
+
+-- matching field from permutation
 -- Fix a permutation S, take a 'highly generic' weight matrix M
 -- that induces the diagonal matching field 
 -- Permute the 2nd row of M using S
@@ -620,8 +622,58 @@ matchingFieldFromPermutation(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
     if # S != Ln or # set S < Ln then (
 	error("expected a permutation of " | toString Ln | " distinct values");
 	);
+    if opts.ScalingCoefficient == 1 then (
+	matchingFieldFromPermutationNoScaling(Lk, Ln, S, opts)
+	) else (
+	local N;
+    	if opts.UsePrimePowers then (
+	    N = nextPrime Ln;
+	    ) else (
+	    N = Ln
+	    );
+    	M := matrix {toList{Ln : 0}} || matrix for i from 1 to Lk - 1 list for j from 1 to Ln list (
+	    if i + 1 == opts.RowNum then (
+	    	(S_(j - 1))*opts.ScalingCoefficient*N^(i - 1)
+	    	) else (
+	    	(Ln - j)*N^(i - 1)
+	    	)
+	    );
+	grMatchingField M
+	)
+    );
+
+-- The Flag matching field from permuting the second row
+matchingFieldFromPermutation(List, ZZ, List) := opts -> (LkList, Ln, S) -> (
+    if # S != Ln or # set S < Ln then (
+	error("expected a permutation of " | toString Ln | " distinct values");
+	);
+    grMatchingFields := for Lk in LkList list matchingFieldFromPermutation(Lk, Ln, S);
+    lastGrMatchingField := grMatchingFields_(#LkList - 1);
+    new FlMatchingField from {
+	n => Ln, 
+	kList => LkList, 
+	grMatchingFieldList => grMatchingFields, 
+	cache => new CacheTable from {
+	    weightMatrix => lastGrMatchingField.cache.weightMatrix,
+	    weightPleucker => flatten for grMF in grMatchingFields list grMF.cache.weightPleucker
+	    }
+	}
+    );
+
+-- matching field from permutation 
+-- assume that there is no scaling coefficient so the tuples of the matching field can be written down quickly
+-- unexported method (used by matchingFieldFromPermutation)
+matchingFieldFromPermutationNoScaling = method(
+    Options => {
+	RowNum => 2, -- which row to permute
+	UsePrimePowers => false, -- Take N (in the definition of the weight matrix) to be a prime number
+	ScalingCoefficient => 1 -- scale the permuted row by this coefficient, if > 2 then matrix may be non-generic unless prime power is true
+	})
+matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
+    -- don't check the user input 
     local IOrdered;
     local minIndex;
+    local N;
     L := {};
     for I in subsets(Ln, Lk) do (
 	if opts.RowNum <= Lk then (
@@ -645,7 +697,11 @@ matchingFieldFromPermutation(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 	    L = append(L, apply(I, i -> i+1));
 	    );
 	);
-    N := Ln;
+    if opts.UsePrimePowers then (
+	N = nextPrime Ln;
+	) else (
+	N = Ln
+	);
     M := matrix {toList{Ln : 0}} || matrix for i from 1 to Lk - 1 list for j from 1 to Ln list (
 	if i + 1 == opts.RowNum then (
 	    (S_(j - 1))*N^(i - 1)
@@ -667,23 +723,6 @@ matchingFieldFromPermutation(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 	}
     );
 
--- The Flag matching field from permuting the second row
-matchingFieldFromPermutation(List, ZZ, List) := opts -> (LkList, Ln, S) -> (
-    if # S != Ln or # set S < Ln then (
-	error("expected a permutation of " | toString Ln | " distinct values");
-	);
-    grMatchingFields := for Lk in LkList list matchingFieldFromPermutation(Lk, Ln, S);
-    lastGrMatchingField := grMatchingFields_(#LkList - 1);
-    new FlMatchingField from {
-	n => Ln, 
-	kList => LkList, 
-	grMatchingFieldList => grMatchingFields, 
-	cache => new CacheTable from {
-	    weightMatrix => lastGrMatchingField.cache.weightMatrix,
-	    weightPleucker => flatten for grMF in grMatchingFields list grMF.cache.weightPleucker
-	    }
-	}
-    );
 
 
 -- isToricDegeneration for a Matching Field
