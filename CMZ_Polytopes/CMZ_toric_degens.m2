@@ -23,7 +23,7 @@ constructGr36Polytopes = () -> (
     local L;
     local P;
     for c from 1 to 5 do (
-    	f = openOut("./CMZ_Polytopes/gr36AllC" | toString c | "PolymakePolytopes");
+    	f = openOut("gr36AllC" | toString c | "PolymakePolytopes");
     	f << "use application \"polytope\";" << endl;
     	i = 0; -- polytope number counter
     	for s in permutations(6) do (
@@ -44,7 +44,7 @@ constructGr37Polytopes = () -> (
     local L;
     local P;
     for c from 1 to 6 do (
-    	f = openOut("./CMZ_Polytopes/gr37AllC" | toString c | "PolymakePolytopes");
+    	f = openOut("gr37AllC" | toString c | "PolymakePolytopes");
     	f << "use application \"polytope\";" << endl;
     	i = 0; -- polytope number counter
     	for s in permutations(7) do (
@@ -64,7 +64,7 @@ constructFl4Polytopes = () -> (
     local f;
     local L;
     local P;
-    f = openOut("./CMZ_Polytopes/fl4MFPolymakePolytopes");
+    f = openOut("fl4MFPolymakePolytopes");
     f << "use application \"polytope\";" << endl;
     for c from 1 to 4 do (	
         i = 0; -- polytope number counter
@@ -85,7 +85,7 @@ constructFl5Polytopes = () -> (
     local f;
     local L;
     local P;
-    f = openOut("./CMZ_Polytopes/fl5MFPolymakePolytopes");
+    f = openOut("fl5MFPolymakePolytopes");
     f << "use application \"polytope\";" << endl;
     for c from 1 to 6 do (
 	i = 0; -- polytope number counter
