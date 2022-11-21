@@ -38,6 +38,7 @@ export {
     "RowNum",
     "UsePrimePowers",
     "ScalingCoefficient",
+    "PowerValue",
     "isToricDegeneration",
     "NOBody",
     "matroidSubdivision",
@@ -610,13 +611,13 @@ pleuckerMap(FlMatchingField) := MF -> (
 -- that induces the diagonal matching field 
 -- Permute the 2nd row of M using S
 -- See the paper: Clarke-Mohammadi-Zaffalon 2022
--- TODO: implement UsePrimePowers and ScalingCoefficient
 --
 matchingFieldFromPermutation = method(
     Options => {
 	RowNum => 2, -- which row to permute
 	UsePrimePowers => false, -- Take N (in the definition of the weight matrix) to be a prime number
-	ScalingCoefficient => 1 -- scale the permuted row by this coefficient, if > 2 then matrix may be non-generic unless prime power is true
+	ScalingCoefficient => 1, -- scale the permuted row by this coefficient, if > 2 then matrix may be non-generic unless prime power is true
+	PowerValue => 0 -- Value of N in weight matrix, if supplied 0 then choose N to be n or nextPrime n depending on above options
 	})
 matchingFieldFromPermutation(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
     if # S != Ln or # set S < Ln then (
@@ -626,17 +627,25 @@ matchingFieldFromPermutation(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 	matchingFieldFromPermutationNoScaling(Lk, Ln, S, opts)
 	) else (
 	local N;
-    	if opts.UsePrimePowers then (
+	local M;
+	local W;
+	if opts.PowerValue > 0 then (
+	    N = opts.PowerValue;
+	    ) else if opts.UsePrimePowers then (
 	    N = nextPrime Ln;
 	    ) else (
 	    N = Ln
 	    );
-    	M := matrix {toList{Ln : 0}} || matrix for i from 1 to Lk - 1 list for j from 1 to Ln list (
-	    if i + 1 == opts.RowNum then (
-	    	(S_(j - 1))*opts.ScalingCoefficient*N^(i - 1)
-	    	) else (
-	    	(Ln - j)*N^(i - 1)
-	    	)
+	if Lk == 1 then (
+	    M = matrix {toList {Ln : 0}};
+	    ) else (
+    	    M = matrix {toList{Ln : 0}} || matrix for i from 1 to Lk - 1 list for j from 1 to Ln list (
+	    	if i + 1 == opts.RowNum then (
+	    	    (S_(j - 1))*opts.ScalingCoefficient*N^(i - 1)
+	    	    ) else (
+	    	    (Ln - j)*N^(i - 1)
+	    	    )
+	    	);
 	    );
 	grMatchingField M
 	)
@@ -647,11 +656,12 @@ matchingFieldFromPermutation(List, ZZ, List) := opts -> (LkList, Ln, S) -> (
     if # S != Ln or # set S < Ln then (
 	error("expected a permutation of " | toString Ln | " distinct values");
 	);
-    grMatchingFields := for Lk in LkList list matchingFieldFromPermutation(Lk, Ln, S);
-    lastGrMatchingField := grMatchingFields_(#LkList - 1);
+    sortedLkList := sort LkList;
+    grMatchingFields := for Lk in sortedLkList list matchingFieldFromPermutation(Lk, Ln, S, opts);
+    lastGrMatchingField := grMatchingFields_(#sortedLkList - 1);
     new FlMatchingField from {
 	n => Ln, 
-	kList => LkList, 
+	kList => sortedLkList, 
 	grMatchingFieldList => grMatchingFields, 
 	cache => new CacheTable from {
 	    weightMatrix => lastGrMatchingField.cache.weightMatrix,
@@ -667,13 +677,15 @@ matchingFieldFromPermutationNoScaling = method(
     Options => {
 	RowNum => 2, -- which row to permute
 	UsePrimePowers => false, -- Take N (in the definition of the weight matrix) to be a prime number
-	ScalingCoefficient => 1 -- scale the permuted row by this coefficient, if > 2 then matrix may be non-generic unless prime power is true
+	ScalingCoefficient => 1, -- scale the permuted row by this coefficient, if > 2 then matrix may be non-generic unless prime power is true
+	PowerValue => 0 -- Value of N in weight matrix, if supplied 0 then choose N to be n or nextPrime n depending on above options
 	})
 matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
-    -- don't check the user input 
     local IOrdered;
     local minIndex;
     local N;
+    local M;
+    local W;
     L := {};
     for I in subsets(Ln, Lk) do (
 	if opts.RowNum <= Lk then (
@@ -697,19 +709,25 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 	    L = append(L, apply(I, i -> i+1));
 	    );
 	);
-    if opts.UsePrimePowers then (
+    if opts.PowerValue > 0 then (
+	N = opts.PowerValue;
+	) else if opts.UsePrimePowers then (
 	N = nextPrime Ln;
 	) else (
 	N = Ln
 	);
-    M := matrix {toList{Ln : 0}} || matrix for i from 1 to Lk - 1 list for j from 1 to Ln list (
-	if i + 1 == opts.RowNum then (
-	    (S_(j - 1))*N^(i - 1)
-	    ) else (
-	    (Ln - j)*N^(i - 1)
-	    )
+    if Lk  == 1 then (
+	M = matrix {toList {Ln : 0}};
+	) else (
+    	M = matrix {toList{Ln : 0}} || matrix for i from 1 to Lk - 1 list for j from 1 to Ln list (
+	    if i + 1 == opts.RowNum then (
+	    	(S_(j - 1))*N^(i - 1)
+	    	) else (
+	    	(Ln - j)*N^(i - 1)
+	    	)
+	    );
 	);
-    W := for I in L list (
+    W = for I in L list (
 	sum for i from 0 to Lk - 1 list M_(i, I_i - 1)
 	);
     new GrMatchingField from {
