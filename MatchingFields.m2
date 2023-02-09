@@ -6,10 +6,10 @@ newPackage(
     Version => "0.1",
     Date => "November 6, 2022",
     Authors => {
-	{Name => "Oliver Clarke", Email => "oliver.clarke.crgs@gmail.com", HomePage => "https://sites.google.com/view/oclarke-homepage/"}
+	{Name => "Oliver Clarke", Email => "oliver.clarke@ed.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
 	},
     Headline => "Matching Fields in Macaulay2",
-    Keywords => {"Grassmannian", "Flag Variety", "Polytopes"},
+    Keywords => {"Grassmannian", "Flag Variety", "Polytopes", "Toric Degeneration", "SAGBI Basis"},
     DebuggingMode => false,
     PackageExports => {"Polyhedra", "Tropical", "Binomials", "SubalgebraBases", "Matroids"}
     )  
@@ -551,6 +551,7 @@ pleuckerIdeal(FlMatchingField) := MF -> (
 	    );
     	---------------------
 	-- Incident Relations
+	--
 	generatorList = generatorList | flatten for grMFs in subsets(MF.grMatchingFieldList, 2) list (
 	    grMF0 := grMFs_0;
 	    grMF1 := grMFs_1;
@@ -1030,6 +1031,134 @@ doc ///
       SeeAlso
       Subnodes
 ///
+
+doc ///
+      Key
+        pleuckerIdeal
+	(pleuckerIdeal, FlMatchingField)
+	(pleuckerIdeal, GrMatchingField)
+      Headline
+        The Pleucker ideal of a matching field
+      Usage
+      	I = pleuckerIdeal L
+	I = pleuckerIdeal LL
+      Inputs
+        L: GrMatchingField 
+	LL: FlMatchingField
+      Outputs
+        I: Ideal
+	  The Pleucker ideal associated to the corresponding Grassmannian or partial flag variety
+	  with the correct term order given by a weight that induced the matching field
+      Description
+        Text
+	  The Pleucker ideal is the defining ideal of a partial flag variety embedded in a product of Grassmannians, where
+	  each Grassmannian is embedded, by the Pleucker embedding, into a suitable projective space.
+	  In the case of the Grassmannian Gr($k$, $n$), it is concretely given by kernel of the ring map 
+	  $K[P_I : I \subseteq [n],\  |I| = k] \rightarrow K[x_{i,j} : i \in [k], \ j \in [n]]$ where $P_I$ is mapped 
+	  to the $k \times k$ maximal minor of the matrix $(x_{i,j})$ whose columns are indexed by the set $I$.
+	  It is well-known that this ideal has a Groebner basis consisting of homogeneous quadrics.
+	  
+	  The function @TO "pleuckerIdeal"@ takes a matching field, either for the Grassmannian or a partial flag variety
+	  and outputs the Pleucker ideal for that Grassmannian or partial flag variety. The ambient polynomial ring that
+	  contains this ideal is constructed to have the term order induced by the matching field.
+	  
+	Example
+	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}})
+	  I = pleuckerIdeal L
+	  (monoid ring I).Options.MonomialOrder
+	  getWeightPleucker L
+	
+	Text
+	  In the above example, the weights for the ambient ring are not the same as the Pleucker weights of the matching field.
+	  This is because of the minimum-maximum convention problem. For compatibility with packages such as @TO "Tropical"@, we use
+	  the minimum convention in @TO "MatchingFields"@ so the smallest weight with respect to the weight matrix that 
+	  induces the matching field is the initial term of a Pleucker form. 
+	  However, the monomial ordering given by @TO "Weights"@ uses the 
+	  maximum convention, so the ambient ring has weights that are based on the negative of the induced Pleucker Weight.    
+	  
+	  Note that the given matching field must be coherent. If the matching field is not defined in terms of a weight
+	  matrix, then the function will attempt to compute a weight matrix for the matching field. If the matching field is
+	  not coherent then the function will produce an error.
+        Example
+	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {4,1}, {2,3}, {2,4}, {3,4}})
+	  isCoherent L
+	  -- I = pleuckerIdeal L -- "error: expected a coherent matching field"
+      
+      SeeAlso
+      Subnodes
+///
+
+
+doc ///
+      Key
+        matroidSubdivision
+	(matroidSubdivision, GrMatchingField)
+      Headline
+        The matroid subdivision induced by the Pleucker weight of a coherent matching field
+      Usage
+        listOfBases = matroidSubdivision L
+      Inputs
+        L: GrMatchingField 
+      Outputs
+        listOfBases: List
+	  Each element is a list of the vertices of a maximal cell of the matroid subdivision of the hypersimplex induced by 
+	  the Pleucker weight of the matching field.
+      Description
+        Text
+	  The hypersimplex $\Delta(k, n) \subseteq \RR^{n}$ is the convex hull of the characteristic vectors of all $k$-subsets
+	  of $\{1, \dots, n\}$, and we label each vertex with with its corresponding subset. A regular subdivision of the vertices of $\Delta(k, n)$
+	  is said to be matroidal if, for each maximal cell of the subdivision, the subsets labelling its vertices form the set of bases of a matroid.
+	  The well-known result is: a point lies in the Dressian Dr($k$, $n$), the tropical prevariety of all $3$-term Pleucker relation in Gr($k$, $n$), if and only if
+	  it induces a matroidal subdivision of the hypersimplex.
+	Example
+	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}})
+	  netList matroidSubdivision L -- an octahedron sliced into 2 pieces
+      SeeAlso
+      Subnodes
+///
+
+doc ///
+      Key
+        algebraicMatroid
+	(algebraicMatroid, GrMatchingField)
+      Headline
+        The algebraic matroid of the cone that induces the matroid
+      Usage
+        M = algebraicMatroid L
+      Inputs
+        L: GrMatchingField 
+      Outputs
+        M: "matroid"
+	  The algebraic matroid of the cone in Trop Gr($k$, $n$) that induces the matching field.
+      Description
+        Text
+	  Let $V \subseteq \CC^n$ be an affine variety. 
+	  The algebraic matroid of $V$ is a matroid whose independent sets $S \subseteq [n]$
+	  are the subsets such that the projection from $V$ to the coordinates indexed by $S$
+	  is a dominant morphism. Similarly, if $C \subseteq \RR^n$ is a polyhedral cone, then the algebraic matroid
+	  of $C$ is the matroid whose independent sets $S \subseteq [n]$ are the subsets such that image of the
+	  projection of $C$ onto the coordinates indexed by $S$ is full-dimensional.
+	  
+	  In the case of the affine cone of Grassmannian under the Pleucker embedding, 
+	  there are a few different ways to compute its algebraic matroid. One way is to use its tropicalization.
+	  The algebraic matroid of the Grassmannian is equal to the matroid whose bases are the union of all bases of the
+	  algebraic matroid for all maximal cones of Trop Gr($k$, $n$).
+	  
+	  For each coherent matching field, we compute its cone in the tropicalization of the Grassmannian.
+	  We compute the algebraic matroid of this cone. To view the bases of this matroid in terms of the $k$-subsets of $[n]$,
+	  use the function @TO "algebraicMatroidBases"@.
+	  
+	Example
+	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}})
+	  M = algebraicMatroid L
+	  netList algebraicMatroidBases L
+      SeeAlso
+      Subnodes
+///
+
+
+
+
 
 
 
