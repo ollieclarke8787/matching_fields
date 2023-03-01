@@ -252,6 +252,20 @@ getTuples(FlMatchingField) := MF -> (
     for grMF in MF.grMatchingFieldList list grMF.tuples
     )
 
+-- Comparison operators: (note that tuples are always listed in revlex order)
+
+GrMatchingField == GrMatchingField := (L1, L2) -> (
+    L1.n == L2.n and
+    L1.k == L2.k and
+    getTuples L1 == getTuples L2
+    )
+
+FlMatchingField == FlMatchingField := (L1, L2) -> (
+    L1.n == L2.n and
+    L1.kList == L2.kList and
+    getTuples L1 == getTuples L2
+    )
+
 
 getGrMatchingFields = method()
 getGrMatchingFields(FlMatchingField) := MF -> (
@@ -1163,9 +1177,120 @@ doc ///
       Subnodes
 ///
 
+doc ///
+      Key
+        getGrMatchingFields
+	(getGrMatchingFields, FlMatchingField)
+      Headline
+        The Grassmannian matching fields of a Flag matching field
+      Usage
+        matchingFieldList = getDrMatchingFields L
+      Inputs
+        L: FlMatchingField 
+      Outputs
+        matchingFieldList: List
+	  The Grassmannian matching fields contained in L.
+      Description
+        Text
+	  This function returns a list of the @TO "GrMatchingField"@s that are contained
+	  within the given @TO "FlMatchingField"@.
+	Example
+	  D = diagonalMatchingField({1,2,3}, 6);
+	  getWeightMatrix D
+	  netList getGrMatchingFields D
+	  D2 = (getGrMatchingFields D)_1;
+	  getWeightMatrix D2
+	Text
+	  The above example constructs the diagonal matching field for the partial
+	  flag variety Fl(123; 6), which contains the data for
+	  three distinct Grassmannian matching fields. Each @TO "GrMatchingField"@
+	  is a diagonal matching field, which are induced by a submatrix of the original
+	  weight matrix that induces the flag matching field.
+      SeeAlso
+      Subnodes
 
+///
 
-
+doc ///
+      Key
+         flMatchingField
+	(flMatchingField, List, Matrix)
+	(flMatchingField, List, ZZ, List)
+	(flMatchingField, Matrix)
+      Headline
+        Construct a matching field for a partial flag variety
+      Usage
+        L = flagMatchingField(kList, weightMatrix)
+	L = flagMatchingField(kList, n, tuples)
+	L = flagMatchingField(weightMatrix)
+      Inputs
+        kList: List
+	  positive integers; the sizes of the tuples of the flag matching field
+	n: ZZ
+	  positive integer; the tuples have entries in 1 .. n
+	weightMatrix: Matrix
+	  induces the flag matching field 
+      Outputs
+        L: FlMatchingField
+      Description
+        Text
+	  This function is the basic constructor for
+	  matching fields for partial flag varieties, which we simply call
+	  flag matching fields. The function outputs an instance of type @TO "FlMatchingField"@,
+	  which represents the flag matching field and stores all data related and 
+	  computed about it.
+	  
+	  There are three basic ways to define a flag matching field. The first way is to
+	  supply a weight matrix that induces the flag matching field. This produces a flag matching field
+	  for the full flag variety.
+	Example
+	  M = matrix {{0,0,0,0}, {4,2,3,1}, {10, 40, 30, 20}}
+	  L1 = flMatchingField M
+	  netList getTuples L1
+	  isToricDegeneration L1
+	Text
+	  In the above example, we construct the flag matching field for the full
+	  flag variety induced by the given weight matrix. The tuples for the 
+	  flag matching field are listed by their size. Similarly to Grassmannian
+	  matching fields: @TO "GrMatchingField"@, the function @TO "isToricdegeneration"@
+	  checks the equality of the @TO "matchingFieldIdeal"@ and the initial ideal
+	  of the @TO "pleuckerIdeal"@ with respect to the weight of the matching field.
+	  
+	  The second way to define a flag matching field
+	  is to supply a weight matrix and specify the size of the sets
+	  or, in other words, specify the dimensions of the vector spaces in the flags.
+	Example
+	  L2 = flMatchingField({1,2}, M)
+	  netList getTuples L2
+	Text
+	  The third way to define a flag matching field is by listing out its tuples.
+	Example
+	  T = getTuples L1
+	  L3 = flMatchingField({1,3}, 4, {T_0, T_2})
+	  getTuples L3
+	  isCoherent L3
+	  getWeightMatrix L3
+	Text
+	  As shown in the example above, the first argument "kList" 
+	  specifies the size of the sets.
+	  The third argument is a list whose i-th entry is a list of tuples
+	  of size "kList_i". In this example, the size of the sets are 1 and 3, 
+	  which correspond to "T_0" and "T_2".
+	  When a flag matching field is constructed in this way, it is not
+	  guaranteed to be coherent, i.e., it may not be induced by a weight matrix.
+	  Similarly to Grassmannian matching fields, the function @TO "isCoherent"@
+	  checks whether the matching field is coherent and the function @TO "getWeightMatrix"@
+	  returns a weight matrix that induces the matching field, if it exists.
+	  If the matching field is not coherent, then these methods produce an error.
+	  
+	  A note of caution. Two different weight matrices may induce the same matching field
+	  so the function @TO "getWeightMatrix"@ may return a weight matrix that is
+	  different to what may be expected. However, if a matching field is defined 
+	  by a weight matrix, then that weight matrix will be returned.
+	  
+      SeeAlso
+      Subnodes
+///
 
 
 
