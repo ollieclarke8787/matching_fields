@@ -47,7 +47,8 @@ export {
     "linearSpanTropCone",
     "VerifyToricDegeneration",
     "algebraicMatroid",
-    "algebraicMatroidBases"
+    "algebraicMatroidBases",
+    "algebraicMatroidCircuits"
     }
 
 
@@ -987,6 +988,12 @@ algebraicMatroidBases(GrMatchingField) := MF -> (
     for B in bases algebraicMatroid MF list (i -> SS_i) \ B
     )
 
+-- write down the bases of the algebraic matroid as subsets 
+algebraicMatroidCircuits = method()
+algebraicMatroidCircuits(GrMatchingField) := MF -> (
+    SS := subsets(toList(1 .. MF.n), MF.k);
+    for B in circuits algebraicMatroid MF list (i -> SS_i) \ B
+    )
 
 
 
