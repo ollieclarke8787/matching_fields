@@ -1344,6 +1344,144 @@ doc ///
       Subnodes
 ///
 
+doc ///
+      Key
+         matchingFieldPolytope
+	(matchingFieldPolytope, FlMatchingField)
+	(matchingFieldPolytope, GrMatchingField)
+	[matchingFieldPolytope, ExtraZeroRows]
+      Headline
+        The polytope of a matching field
+      Usage
+        P = matchingFieldPolytope(Lgr)
+	P = matchingFieldPolytope(Lfl)
+      Inputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Outputs
+        P: Polyhedron
+	  polytope of the matching field
+      Description
+        Text
+	  Each matching field defines a projective toric variety whose defining
+	  ideal is given by the kernel of the monomial map. See @TO "matchingFieldRingMap"@.
+	  The coordinate ring of this toric variety is the Ehrhart ring of 
+	  the matching field polytope. Note that for flag matching fields, the
+	  toric variety is embedded into a high-dimensional
+	  projective space via the Segre embedding whose domain is a product of
+	  Grassmannians.
+	  
+	  Given a matching field $\Lambda$ for the Grassmannian Gr$(k,n)$, the matching field 
+	  polytope $P(\Lambda)$ is simply the convex hull of the exponent
+	  vectors of the image of Pleucker variables under the monomial map of 
+	  $\Lambda$. The polytope natrually lives in the space
+	  $\RR^{k \times n}$.
+	Example
+	  L2 = diagonalMatchingField(2, 4)
+	  P2 = matchingFieldPolytope L2
+	  fVector P2
+	  vertices P2
+	Text
+	  The columns of the above matrix are the vertices of the matching field
+	  polytope $P(\Lambda)$. Each column should be thought of as a $2 \times 4$ 
+	  matrix whose entries are listed row by row.
+	  
+	  A matching field $\Lambda$ for a partial flag variety Fl$(k_1, \dots, k_s; n)$ is a union of matching 
+	  fields $\Lambda = \bigcup \Lambda_i$ for some Grassmannians. The matching field polytope for a
+	  partial flag variety is the
+	  Minkowski sum $P(\Lambda) = \sum P(\Lambda_i)$ of Grassmannian matching field polytopes in $\Lambda$.
+	  For this sum to make sense, each Grassmannian matching field polytope
+	  must be put into the same space, which is taken to be $\RR^{k_{\max} \times n}$
+	  where $k_{\max} = \max\{k_i\}$ is the largest $k$ such that there is a Grassmannian matching field
+	  for Gr$(k,n)$ contained in $\Lambda$. If $v \in \RR^{k_i \times n}$ is a vertex for a
+	  Grassmannian matching field polytope, then we embed $v$ into $\RR^{k_{\max} \times n}$
+	  by joining a suitably sized matrix of zeros to $v$ from below.
+	  
+	  Embedding a Grassmannian matching field polytope into a higher dimensional space as
+	  described is done by specifying the optional value @TO "ExtraZeroRows"@.
+	Example
+	  L1 = diagonalMatchingField(1, 4)
+	  P1 = matchingFieldPolytope(L1, ExtraZeroRows => 1)
+	  vertices P1
+	  P12 = minkowskiSum(P1, P2)
+	  vertices P12
+	Text
+	  The above example constructs the diagonal matching field polytope for
+	  the partial flag variety Fl$(1, 2; 4)$ as a Minkowski sum. 
+	  The quick way to do this is as follows.
+    	Example
+	  L = diagonalMatchingField({1,2}, 4)	
+    	  Q = matchingFieldPolytope L 
+	  Q == P12
+	
+      SeeAlso
+      Subnodes
+///
+
+doc ///
+      Key
+         pleuckerMap
+	(pleuckerMap, FlMatchingField)
+	(pleuckerMap, GrMatchingField)
+      Headline
+        The ring map of the Pleucker embedding
+      Usage
+        m = pleuckerMap(Lgr)
+	m = pleuckerMap(Lfl)
+      Inputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Outputs
+        m: RingMap
+	  the ring map of the Pleucker embedding
+      Description
+        Text
+          The ring map for the Pleucker embedding of the Grassmannian
+	  sends each Pleucker variable $P_J$,
+	  where $J$ is a $k$-subset of $[n]$, to its corresponding maximal minor in a
+	  generic $k \times n$ matrix of variables $X = (x_{i,j})$.
+	  	
+	  The domain and codomain of this ring map are naturally equipped with term 
+	  orders derived from a weight matrix, which induces the matching field.
+	  So, for this function, we require that the matching fields be coherent.
+          If a weight matrix is not supplied, then one is automatically computed.
+	  If the matching field is not coherent, then an error is thown.
+      	Example
+          L = grMatchingField(2, 4, {{1, 2}, {1, 3}, {3, 2}, {1, 4}, {4, 2}, {3, 4}})
+	  isCoherent L
+	  getWeightMatrix L
+	  pleuckerMap L
+          describe target pleuckerMap L
+      	Text
+          For the above polynomial ring, the monomial order is given by a weight ordering.
+	  Note that the weights are based on $-1 \times W$ where $W$ is the weight matrix
+	  that induces $L$, displayed using the function @TO "getWeightMatrix"@. 
+	  The purpose of $-1$ is to transition between the minimum convention
+	  of matching fields and the maximum convention of initial terms in @TO "Macaulay2"@.
+	  	
+	  The ring map for the Pleucker embedding of a partial flag variety is
+	  completely analogous.
+      	Example
+          L = diagonalMatchingField({1,2}, 4)
+	  getWeightMatrix L
+	  m = pleuckerMap L
+	  describe source m
+        Text
+          The monomial order on the ring of Pleucker variables, 
+	  shown above, is also based on $-1 \times W$. More concretely,
+	  the weight vector of a Pleucker variable $P_J$ is the weight of 
+	  the initial term of the image of the Pleucker variable $m(P_J) = \det(X_J)$ under the map.
+	  
+	  The monomial map associated to the matching field, see @TO "matchingFieldRingMap"@ 
+	  is the map that sends each
+	  Pleucker variable $P_J \mapsto \rm{in}(\det(X_J))$ to the lead term of the
+	  maximal minor $\det(X_J)$. 
+	
+      SeeAlso
+      Subnodes
+///
+
+
 
 
 -- #########
