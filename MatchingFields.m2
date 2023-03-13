@@ -11,7 +11,7 @@ newPackage(
     Headline => "Matching Fields in Macaulay2",
     Keywords => {"Grassmannian", "Flag Variety", "Polytopes", "Toric Degeneration", "SAGBI Basis"},
     DebuggingMode => false,
-    PackageExports => {"Polyhedra", "Tropical", "Binomials", "SubalgebraBases", "Matroids"}
+    PackageExports => {"Polyhedra", "Tropical", "Binomials", "SubalgebraBases", "Matroids", "FourTiTwo"}
     )  
 
 -- ###########
@@ -94,6 +94,7 @@ protect symbol grMatchingFieldList
 protect symbol weightMatrix
 protect symbol weightPleucker
 protect symbol mfPolytope
+protect symbol mfPolytopePoints
 
 protect symbol ringP -- Polynomial ring in variables P_I, I in subsets(n, k)
 protect symbol ringX -- Polynomial ring in variables x_(i,j), 1 <= i <= k, 1 <= j <= n
@@ -304,6 +305,47 @@ getWeightPleucker(FlMatchingField) := MF -> (
     MF.cache.weightPleucker
     )
 
+---------------------------------------
+-- Matching Field Polytope Points
+-- The vertices of the matching field polytope
+--
+-- Note that the package Polyhedra will compute its own vertices
+-- for the matching field polytope. So the order of 
+-- the columns is not guaranteed when calling 'vertices' so we
+-- use our own function since we know that all supplied points are vertices
+--
+-- This function is for internal use only
+-- It is only required for the Grassmannian matching fields
+matchingFieldPolytopePoints = method(
+    Options => {
+	ExtraZeroRows => 0
+	}
+    )
+
+matchingFieldPolytopePoints(GrMatchingField) := opts -> MF -> (
+    if opts.ExtraZeroRows == 0 and MF.cache.?mfPolytopePoints then (
+	MF.cache.mfPolytopePoints
+	) else (
+	-- construct a matching field polytope P_L from 
+	--   L a matching field for Gr(k, n) Grassmannian 
+    	points := {};
+    	for I in MF.tuples do (
+	    -- construct the point corresponding to I 
+	    point := ();
+	    for i in I do (
+	    	point = point | (i - 1 : 0) | (1 : (1)) | (MF.n - i : 0);
+	    	);
+	    point = point | (MF.n * opts.ExtraZeroRows : 0);
+	    point = toList point;
+	    points = append(points, point);
+	    ); 
+    	points = transpose matrix points;
+	if opts.ExtraZeroRows == 0 then MF.cache.mfPolytopePoints = points;
+	points
+	)
+    )
+
+
 ---------------------------
 -- Matching Field polytope
 -- The polytope with one vertex for each tuple of the matching field
@@ -319,24 +361,10 @@ matchingFieldPolytope = method(
 	}
     )
 matchingFieldPolytope(GrMatchingField) := opts -> MF -> (
-    if MF.cache.?mfPolytope then (
+    if opts.ExtraZeroRows == 0 and MF.cache.?mfPolytope then (
 	MF.cache.mfPolytope
 	) else ( 
-	-- construct a matching field polytope P_L from 
-	--   L a matching field for Gr(k, n) Grassmannian 
-    	points := {};
-    	for I in MF.tuples do (
-	    -- construct the point corresponding to I 
-	    point := ();
-	    for i in I do (
-	    	point = point | (i - 1 : 0) | (1 : (1)) | (MF.n - i : 0);
-	    	);
-	    point = point | (MF.n * opts.ExtraZeroRows : 0);
-	    point = toList point;
-	    points = append(points, point);
-	    ); 
-    	points = transpose matrix points;
-    	P := convexHull points;
+	P := convexHull matchingFieldPolytopePoints(MF, opts);
     	if opts.ExtraZeroRows == 0 then MF.cache.mfPolytope = P;
 	P    
 	)
@@ -458,7 +486,7 @@ tupleSign(List) := I -> (
 -- matching field ring map: P_I -> x_(1,I_1) * x_(2, I_2) ... x_(k, I_k), for each tuple I
 matchingFieldRingMap = method()
 matchingFieldRingMap(GrMatchingField) := MF -> (
-    setupMatchingFieldRings(MF);
+    setupMatchingFieldRings MF;
     if not MF.cache.?mfRingMap then (
     	R := MF.cache.ringP;
     	S := MF.cache.ringX;
@@ -470,7 +498,7 @@ matchingFieldRingMap(GrMatchingField) := MF -> (
     )
 
 matchingFieldRingMap(FlMatchingField) := MF -> (
-    setupMatchingFieldRings(MF);
+    setupMatchingFieldRings MF;
     if not MF.cache.?mfRingMap then (
     	R := MF.cache.ringP;
     	S := MF.cache.ringX;
@@ -484,19 +512,69 @@ matchingFieldRingMap(FlMatchingField) := MF -> (
     )	     
 
 -- matching field ideal
-matchingFieldIdeal = method()
-matchingFieldIdeal(GrMatchingField) := MF -> (
+-- compute using M2 or FourTiTwo methods
+matchingFieldIdeal = method(
+    Options => {
+	Strategy => "4ti2" -- "FourTiTwo" or "M2"
+	}
+    )
+matchingFieldIdeal(GrMatchingField) := opts -> MF -> (
     -- setting up MF rings is done by grMatchingFieldRingMap if necessary
     if not MF.cache.?mfIdeal then (
-    	MF.cache.mfIdeal = kernel matchingFieldRingMap(MF)
-    	);
+	if opts.Strategy == "M2" then (
+	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF);
+    	    )
+	else if opts.Strategy == "4ti2" then (
+	    setupMatchingFieldRings MF;
+	    V := matchingFieldPolytopePoints MF;
+	    gensMatrix := gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPleucker MF);
+	    -- adjust the signs of the variables
+	    signChange := map(MF.cache.ringP, MF.cache.ringP, matrix {
+		    for i from 0 to #MF.tuples - 1 list (tupleSign (MF.tuples)_i)*(MF.cache.ringP)_i
+		    });
+	    gensMatrix = signChange gensMatrix;
+	    MF.cache.mfIdeal = ideal gensMatrix;
+	    -- sometimes the Weights might not work (depends on 4ti2 version) see docs 
+	    forceGB gens MF.cache.mfIdeal; 
+	    )
+       	else (
+	    error("unknown Strategy: " | toString opts.Strategy | " for matchingFieldIdeal");
+	    );
+	);
     MF.cache.mfIdeal
     )
 
-matchingFieldIdeal(FlMatchingField) := MF -> (
+matchingFieldIdeal(FlMatchingField) := opts -> MF -> (
     -- setting up MF rings is done by grMatchingFieldRingMap if necessary
     if not MF.cache.?mfIdeal then (
-    	MF.cache.mfIdeal = kernel matchingFieldRingMap(MF)
+    	if opts.Strategy == "M2" then (
+	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF);
+    	    )
+	else if opts.Strategy == "4ti2" then (
+	    setupMatchingFieldRings MF;
+	    VList := for grMF in MF.grMatchingFieldList list (
+		matchingFieldPolytopePoints(grMF, ExtraZeroRows => (max MF.kList - grMF.k))
+		);
+	    V := fold(VList, (V1, V2) -> V1 | V2);
+	    gensMatrix := gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPleucker MF);
+	    -- adjust the signs of the variables
+	    signChange := map(MF.cache.ringP, MF.cache.ringP, matrix {
+		    variableIndex := -1;
+		    flatten for grMF in MF.grMatchingFieldList list (
+			for i from 0 to #grMF.tuples - 1 list (
+			    variableIndex = variableIndex + 1;
+			    (tupleSign (grMF.tuples)_i)*(MF.cache.ringP)_variableIndex
+			    )
+			)
+		    });
+	    gensMatrix = signChange gensMatrix;
+	    MF.cache.mfIdeal = ideal gensMatrix;
+	    -- sometimes the Weights might not work (depends on 4ti2 version) see docs
+	    forceGB gens MF.cache.mfIdeal; 
+	    )
+       	else (
+	    error("unknown Strategy" | toString opts.Strategy | " for matchingFieldIdeal");
+	    );
     	);
     MF.cache.mfIdeal
     )
@@ -773,6 +851,7 @@ isToricDegeneration(FlMatchingField) := MF -> (
 
 
 -- subring of a matching field
+-- overloaded method (subring is originally a method from the package SubalgebraBases)
 -- the pleucker algebra inside inside a ring with term order
 -- given by the weightMatrix
 subring(GrMatchingField) := opts -> MF -> (
@@ -912,15 +991,13 @@ isCoherent = method()
 isCoherent(GrMatchingField) := MF -> (
     if MF.cache.?weightMatrix then true else (
 	C := weightMatrixCone MF;
-	-- coherent iff C is full-dimensional
-	(dim C) == (MF.k * MF.n)
+	(dim C) == (MF.k * MF.n) -- coherent iff C is full-dimensional
 	)
     )
 isCoherent(FlMatchingField) := MF -> (
     if MF.cache.?weightMatrix then true else (
 	C := weightMatrixCone MF;
-	-- coherent iff C is full-dimensional
-	(dim C) == ((max MF.kList)* MF.n)
+	(dim C) == ((max MF.kList)* MF.n) -- coherent iff C is full-dimensional
 	)
     )
 
@@ -1143,14 +1220,14 @@ doc ///
         algebraicMatroid
 	(algebraicMatroid, GrMatchingField)
       Headline
-        The algebraic matroid of the cone that induces the matroid
+        The algebraic matroid of the tropical cone that induces the matroid
       Usage
         M = algebraicMatroid L
       Inputs
         L: GrMatchingField 
       Outputs
         M: "matroid"
-	  The algebraic matroid of the cone in Trop Gr($k$, $n$) that induces the matching field.
+	  The algebraic matroid of the cone in Trop Gr$(k,n)$ that induces the matching field.
       Description
         Text
 	  Let $V \subseteq \CC^n$ be an affine variety. 
@@ -1167,13 +1244,15 @@ doc ///
 	  
 	  For each coherent matching field, we compute its cone in the tropicalization of the Grassmannian.
 	  We compute the algebraic matroid of this cone. To view the bases of this matroid in terms of the $k$-subsets of $[n]$,
-	  use the function @TO "algebraicMatroidBases"@.
+	  use the function @TO "algebraicMatroidBases"@. Similarly, to view its circuits use @TO "algebraicMatroidCircuits"@ 
 	  
 	Example
 	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}})
 	  M = algebraicMatroid L
 	  netList algebraicMatroidBases L
       SeeAlso
+        algebraicMatroidBases
+	algebraicMatroidCircuits
       Subnodes
 ///
 
@@ -1289,7 +1368,16 @@ doc ///
 	  by a weight matrix, then that weight matrix will be returned.
 	  
       SeeAlso
+        FlMatchingField
+        GrMatchingField
+	grMatchingField
+	isToricDegeneration
+	pleuckerIdeal
+	matchingFieldIdeal
+	isCoherent
+	getWeightMatrix
       Subnodes
+      
 ///
 
 
@@ -1298,6 +1386,7 @@ doc ///
          matchingFieldIdeal
 	(matchingFieldIdeal, FlMatchingField)
 	(matchingFieldIdeal, GrMatchingField)
+	[matchingFieldIdeal, Strategy]
       Headline
         The toric ideal of a matching field
       Usage
@@ -1306,6 +1395,8 @@ doc ///
       Inputs
         Lgr: GrMatchingField
 	Lfl: FlMatchingField
+	Strategy => String
+	  either "M2" or "4ti2" the strategy for computing the generators
       Outputs
         I: Ideal
 	  toric ideal of the matching field
@@ -1314,7 +1405,8 @@ doc ///
 	  A matching field $\Lambda$ for the Grassmannian Gr$(k,n)$ associates to each subset $J = \{j_1 < \dots < j_k\}$
 	  an ordering of that subset $\Lambda(J) = (j_{\sigma(1)}, \dots, j_{\sigma(k)})$ for some permutation $\sigma \in S_k$.
 	  The monomial map associated to a matching field $\Lambda$ is defined as the map that sends each Pleucker 
-	  coordinate $p_J$ to the monomial $x_{1, \Lambda(J)_1} x_{2, \Lambda(J)_2} \cdots x_{k, \Lambda(J)_k}$. The matching field
+	  coordinate $p_J$ to the monomial sgn$(\sigma)x_{1, \Lambda(J)_1} x_{2, \Lambda(J)_2} \cdots x_{k, \Lambda(J)_k}$ 
+	  where sgn$(\sigma) \in \{+1, -1\}$ is the sign of the permutation. The matching field
 	  ideal is the kernel of this monomial map.
 	Example
 	  L = diagonalMatchingField(2, 4)
@@ -1340,6 +1432,15 @@ doc ///
 	  source pleuckerMap L === source matchingFieldRingMap L
 	  target pleuckerMap L
 	  target pleuckerMap L === target matchingFieldRingMap L
+	Text
+	  The option @TO "Strategy"@ determines how the matching field ideal is computed. The default uses the package @TO "FourTiTwo"@. This strategy works
+	  by passing in the matrix of the toric ideal to @TO "toricGroebner"@ with the correct weight vector. In the case of Grassmannian matching fields,
+	  the columns of the matrix of the toric ideal are exactly the vertices of the matching field polytope. For a flag matching field $\Lambda$, 
+	  the matrix of the toric ideal is the top-justified juxtaposition of such matrices for the Grassmannian matching fields contained in $\Lambda$.
+	  On the other hand, the strategy "M2" simply uses the in-built function to compute the kernel of the map @TO "matchingFieldRingMap"@.	  
+      Caveat
+        For some versions of the package @TO "FourTiTwo"@, the strategy "4ti2" may not correctly take into account the weights. See the caveat in the
+	documentation of the function @TO "toricGroebner"@. If there are any problems, it may be more reliable to use the option "M2".
       SeeAlso
       Subnodes
 ///
@@ -1358,6 +1459,9 @@ doc ///
       Inputs
         Lgr: GrMatchingField
 	Lfl: FlMatchingField
+	ExtraZeroRows => ZZ 
+	  produces a matching field polytope embedded in a larger space
+	  typically used for producing polytopes of flag matching field
       Outputs
         P: Polyhedron
 	  polytope of the matching field
@@ -1480,6 +1584,373 @@ doc ///
       SeeAlso
       Subnodes
 ///
+
+doc ///
+      Key
+         weightMatrixCone
+	(weightMatrixCone, FlMatchingField)
+	(weightMatrixCone, GrMatchingField)
+	[weightMatrixCone, ExtraZeroRows]
+      Headline
+        The cone of weight matrices that induce the matching field
+      Usage
+        C = weightMatrixCone(Lgr)
+	C = weightMatrixCone(Lfl)
+      Inputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+	ExtraZeroRows => ZZ
+	  produces a cone embedded in a higher dimensional space
+	  typically used for constructing weight matrix cones for flag matching fields
+      Outputs
+        C: Cone
+	  the cone of weight matrices that induce the matching field
+      Description
+        Text
+          Given a coherent matching field $\Lambda$, either for the Grassmannian or partial flag variety,
+	  the set of weight matrices that induce $\Lambda$ naturally form a polyhedral cone.
+	  The function @TO "weightMatrixCone"@ constructs this cone by writing down a collection of inequalities.
+	  To illustrate this assume that $(1,2)$ is a tuple of $\Lambda$. A weight matrix $M = (m_{i,j})$ 
+	  induces a matching field with the tuple $(1,2)$ if and only if $m_{1,1} + m_{2,2} < m_{1,2} + m_{2,1}$.
+	  Continuing in this way for all other tuples of $\Lambda$ produces the cone of weight matrices.
+	  Note, the inequalities, like the one above, are strict. So, in general, only the interior points of 
+	  the cone give rise to generic weight matrices that induce the matching field.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  C = weightMatrixCone L  
+	  rays C
+	  linealitySpace C
+	  dim C
+	Text
+	  In the above example, we can see that adding a vector from the lineality space 
+	  can be interpreted as adding a constant to each element in a specific row or column 
+	  of the weight matrix.
+	  
+	  For matching fields that are not originally defined by a weight matrix, the cone of weight matrices
+	  allows us to test if the matching field is coherent. The matching field is coherent if and only if
+	  the cone is full dimensional. This is the strategy implemented by the function @TO "isCoherent"@.
+        Example
+	  L = grMatchingField(2, 3, {{1, 2}, {2, 3}, {3, 1}})
+	  isCoherent L
+	  dim weightMatrixCone L
+	Text
+	  In the example above, the cone naturally lives in $\RR^6$ so it is not full dimensional.
+	  Therefore, the matching field is not coherent.  
+      SeeAlso
+      Subnodes
+///
+
+doc ///
+      Key
+         algebraicMatroidBases
+	(algebraicMatroidBases, GrMatchingField)
+      Headline
+        The bases of the algebraic matroid
+      Usage
+        B = algebraicMatroidBases L
+      Inputs
+        L: GrMatchingField
+      Outputs
+        B: List
+	  the bases of the algebraic matroid of the matching field as $k$-subsets
+      Description
+        Text
+          Displays the bases of the algebraic matroid associated to the Grassmannian Gr$(k,n)$ matching field
+	  in terms of the $k$-subsets of $[n]$. For more details about the matroid, see the function @TO "algebraicMatroid"@.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  netList algebraicMatroidBases L
+      SeeAlso
+        algebraicMatroid
+	algebraicMatroidCircuits
+      Subnodes
+///
+
+doc ///
+      Key
+         algebraicMatroidCircuits
+	(algebraicMatroidCircuits, GrMatchingField)
+      Headline
+        The bases of the algebraic matroid
+      Usage
+        C = algebraicMatroidCircuits L
+      Inputs
+        L: GrMatchingField
+      Outputs
+        C: List
+	  the circuits of the algebraic matroid of the matching field as $k$-subsets
+      Description
+        Text
+          Displays the circuits of the algebraic matroid associated to the Grassmannian Gr$(k,n)$ matching field
+	  in terms of the $k$-subsets of $[n]$. For more details about the matroid, see the function @TO "algebraicMatroid"@.
+	Example
+	  L = diagonalMatchingField(2, 5)
+	  netList algebraicMatroidCircuits L
+      SeeAlso
+        algebraicMatroid
+	algebraicMatroidCircuits
+      Subnodes
+///
+
+doc ///
+      Key
+         isToricDegeneration
+	(isToricDegeneration, GrMatchingField)
+	(isToricDegeneration, FlMatchingField)
+      Headline
+        Does the matching field give rise to a toric degeneration
+      Usage
+        result = isToricDegeneration Lgr
+	result = isToricDegeneration Lfl 
+      Inputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Outputs
+        result: Boolean
+	  does the matching field give rise to a toric degeneration
+      Description
+        Text
+          A matching field is said to give rise to a toric degeneration (of the corresponding variety: Grassmannian
+	  or partial flag variety) if the matching field ideal is equal to the initial ideal of the Pleucker ideal
+          with respect the weight order that induces the matching field. For further details on each of these ideals
+	  see the functions @TO "matchingFieldIdeal"@ and @TO "pleuckerIdeal"@.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  I = pleuckerIdeal L
+	  J = matchingFieldIdeal L
+	  J == ideal leadTerm(1, I)
+	  isToricDegeneration L
+	Text
+	  In the above example, the last two tests are the same.
+	  
+	  If the matching field provided is not defined in terms of a 
+	  weight matrix then one is automatically computed for it.
+	  If the matching field is not coherent then this will produce an error.
+      SeeAlso
+        matchingFieldIdeal
+	pleuckerIdeal
+      Subnodes
+///
+
+doc ///
+      Key
+         getTuples
+	(getTuples, FlMatchingField)
+	(getTuples, GrMatchingField)
+      Headline
+        The tuples of a matching field
+      Usage
+        tuples = getTuples Lgr
+	tuples = getTuples Lfl 
+      Inputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Outputs
+        tuples: List
+	  A list of subsets of $1, \dots, n$; the tuples of the matching field
+      Description
+        Text
+          A matching field $\Lambda$ for the Grassmannian Gr$(k, n)$ is a collection tuples $\Lambda(J)$ for each 
+	  $k$-subset $J \subseteq [n]$. The entries of the tuple form a permutation of $J$, so in some literature
+	  $\Lambda(J)$ is taken to be the element of the symmetric group $\sigma \in S_k$ such that
+	  $\Lambda(J) = (j_{\sigma(1)}, j_{\sigma(2), \dots, j_{\sigma(k)}})$ where $J = \{j_1 < j_2 < \dots < j_k\}$.
+	Example
+	  L = diagonalMatchingField(2, 4) 
+	  getTuples L
+	Text
+	  The tuples are stored such that their underlying sets are in RevLex order, which is the order
+	  produced by the method @TO "subsets"@.
+	  
+	  For flag matching fields, the tuples are stored as a list of list of tuples for each Grassmannian
+	  matching field contained within.
+	Example
+	  L = diagonalMatchingField({1,2}, 4) 
+	  netList getTuples L
+      SeeAlso
+        grMatchingField
+	flMatchingField
+	diagonalMatchingField
+      Subnodes
+///
+
+doc ///
+      Key
+         isCoherent
+	(isCoherent, FlMatchingField)
+	(isCoherent, GrMatchingField)
+      Headline
+        Is the matching field coherent
+      Usage
+        result = isCoherent Lgr
+	result = isCoherent Lfl 
+      Inputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Outputs
+        result: Boolean
+	  is the matching field coherent, i.e., induced by a weight matrix
+      Description
+        Text
+          We say that a matching field $\Lambda$ is coherent if it is induced by a weight matrix.
+	  Note that we use the minimum convention for weight matrices however for polynomial rings, the
+	  @TO "Weights"@ option for @TO "MonomialOrder"@ uses the maximum convention.
+	Example
+	  L1 = grMatchingField(2, 4, {{1,2}, {1,3}, {2,3}, {1,4}, {2,4}, {4,3}})
+	  isCoherent L1
+	  getWeightMatrix L1
+	  L2 = grMatchingField(2, 3, {{1,2}, {2,3}, {3,1}})
+	  isCoherent L2
+	Text
+	  In the examples above, the matching fields are defined in terms of their tuples. To check whether the
+	  matching fields are coherent, the weight matrix cone is constructed, see the function @TO "weightMatrixCone"@.
+	  The matching field is coherent if and only if the weight matrix cone is full dimensional.
+	  If the matching field happens to be coherent, then an interior point is used for any further
+	  computations that require a weight matrix.
+	  
+      SeeAlso
+        weightMatrixCone
+      Subnodes
+///
+
+
+doc ///
+      Key
+        RowNum
+      Headline
+        the row of the diagonal weight matrix to permute
+      Usage
+        Lgr = matchingFieldFromPermutation(k, n, S, RowNum => r)
+	Lfl = matchingFieldFromPermutation(kList, n, S, RowNum => r) 
+      Inputs
+        k: ZZ
+	kList: List
+	n: ZZ
+	S: List
+	  a permutation of $1, \dots, n$
+	r: ZZ
+	  an integer at most $k$ or at most $\max(kList)$
+      Outputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Description
+        Text
+          The option @TO "RowNum"@ chooses the row of the diagonal matching field weight matrix to permute.
+	  By default the value is $2$.
+	Example
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {4,5,6,1,2,3}, RowNum => 1)
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {4,5,6,1,2,3}, RowNum => 2)
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {4,5,6,1,2,3}, RowNum => 3)  
+      SeeAlso
+        matchingFieldFromPermutation
+      	diagonalMatchingField
+      Subnodes
+///
+
+
+doc ///
+      Key
+        ExtraZeroRows
+      Headline
+        enlarging a matrix with zero rows 
+      Description
+        Text
+          The option @TO "ExtraZeroRows"@ is used by the functions @TO "matchingFieldPolytope"@ and
+	  @TO "weightMatrixCone"@. In each case, the option controls the ambient space of the polyhedron.
+	  By default the value is zero. It is typically used interally for computing Minkowski sums.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  P = matchingFieldPolytope(L, ExtraZeroRows => 1)
+	  vertices P
+	  C = weightMatrixCone(L, ExtraZeroRows => 1)
+	  rays C
+	Text
+	  In the above examples, the polyhedral object typically live in the space $\RR^{2 \times 4}$. However,
+	  by adding an additional row, the objects live in $\RR^{3 \times 4} \cong \RR^{12}$.
+	  Reading the down the entries of columns corresponds to reading row-by-row the entries of the corresponding
+	  matrix. 
+      SeeAlso
+        matchingFieldPolytope
+	weightMatrixCone
+      Subnodes
+///
+
+
+doc ///
+      Key
+        GrMatchingField
+      Headline
+        the class of Grassmannian matching fields 
+      Description
+        Text
+	  Common ways to define Grassmannian matching fields:
+	  
+	  @UL {
+	    {TO {"grMatchingField"}, "-- defined in terms of tuples or a weight matrix"},
+	    {TO {"diagonalMatchingField"}, "-- the diagonal matching field"},
+	    {TO {"matchingFieldFromPermutation"}, "-- family of matching fields indexed by permutations"}
+      	  }@
+	  
+	  {\bf Technical details.}
+	  A Grassmannian matching field is derived from the class @TO "HashTable"@. All
+	  Grassmannian matching fields have the following fields:
+	  
+	  @ UL {
+	    {"k of type ZZ"},
+	    {"n of type ZZ"},
+	    {"tuples of type List, accessible with", TO {"getTuples"}},
+	    {"cache"}
+	  }@
+      
+	  Everything else, including: weight matrices; polynomial rings, maps and ideals; polyhedra
+	  such as the weight matrix cone and matching field polytope, are all stored inside the cache.
+	  Note that the package does not export the keys, such as k or n. 
+	  If you wish to directly address the contents of the
+	  GrMatchingField, then use "debug MatchingFields".
+      SeeAlso
+        FlMatchingField
+	grMatchingField
+      Subnodes
+///
+
+
+doc ///
+      Key
+        FlMatchingField
+      Headline
+        the class of matching fields for partial flag varieties
+      Description
+        Text
+	  Common ways to define flag matching fields:
+	  
+	  @ UL { 
+	    {TO {"flMatchingField"}, "-- defined in terms of tuples or a weight matrix"},
+	    {TO {"diagonalMatchingField"}, "-- the diagonal matching field"},
+	    {TO {"matchingFieldFromPermutation"}, "-- family of matching fields indexed by permutations"}
+	  }@
+      	  
+	  {\bf Technical details.}
+	  A flag matching field is derived from the class @TO "HashTable"@. All
+	  flag matching fields have the following fields:
+	  
+	  @ UL {
+	    {"kList of type ZZ"},
+	    {"n of type ZZ"}, 
+	    {"grMatchingFieldList of type List, the list of Grassmannian matching fields contained within,
+	    accessible with the function", TO "getGrMatchingFields"},
+	    {"cache"}
+	  }@
+	  
+	  Everything else, including: weight matrices; polynomial rings, maps and ideals; polyhedra
+	  such as the weight matrix cone and matching field polytope, are all stored inside the cache.
+	  Note that the package does not export the keys, such as kList or n. 
+	  If you wish to directly address the contents of the
+	  FlMatchingField, then use "debug MatchingFields".
+      SeeAlso
+        GrMatchingField
+	flMatchingField
+      Subnodes
+///
+
 
 
 
