@@ -75,6 +75,7 @@ FlMatchingField = new Type of HashTable;
 -- The cache table contains some of the following (or eventually computed):
 -- weightMatrix
 -- weightPleucker
+-- mfPolytopePoints
 -- mfPolytope 
 -- matchingFieldIdeal
 -- matchingFieldRingMap
@@ -98,7 +99,7 @@ protect symbol mfPolytopePoints
 
 protect symbol ringP -- Polynomial ring in variables P_I, I in subsets(n, k)
 protect symbol ringX -- Polynomial ring in variables x_(i,j), 1 <= i <= k, 1 <= j <= n
-protect symbol X -- matroid with ringX variables
+protect symbol X -- matrix of ringX variables
 protect symbol mfRingMap
 protect symbol pleuckerRingMap
 protect symbol mfIdeal
@@ -253,20 +254,6 @@ getTuples(FlMatchingField) := MF -> (
     for grMF in MF.grMatchingFieldList list grMF.tuples
     )
 
--- Comparison operators: (note that tuples are always listed in revlex order)
-
-GrMatchingField == GrMatchingField := (L1, L2) -> (
-    L1.n == L2.n and
-    L1.k == L2.k and
-    getTuples L1 == getTuples L2
-    )
-
-FlMatchingField == FlMatchingField := (L1, L2) -> (
-    L1.n == L2.n and
-    L1.kList == L2.kList and
-    getTuples L1 == getTuples L2
-    )
-
 
 getGrMatchingFields = method()
 getGrMatchingFields(FlMatchingField) := MF -> (
@@ -305,17 +292,32 @@ getWeightPleucker(FlMatchingField) := MF -> (
     MF.cache.weightPleucker
     )
 
+
+-- Comparison operators: (note that tuples are always listed in revlex order)
+GrMatchingField == GrMatchingField := (MF1, MF2) -> (
+    MF1.n == MF2.n and
+    MF1.k == MF2.k and
+    getTuples MF1 == getTuples MF2
+    )
+
+FlMatchingField == FlMatchingField := (MF1, MF2) -> (
+    MF1.n == MF2.n and
+    MF1.kList == MF2.kList and
+    getTuples MF1 == getTuples MF2
+    )
+
 ---------------------------------------
 -- Matching Field Polytope Points
 -- The vertices of the matching field polytope
 --
 -- Note that the package Polyhedra will compute its own vertices
 -- for the matching field polytope. So the order of 
--- the columns is not guaranteed when calling 'vertices' so we
--- use our own function since we know that all supplied points are vertices
+-- the columns is not guaranteed when calling 'vertices' on a Polyhedron 
+-- so we use our own function since we know that all supplied points are vertices
 --
--- This function is for internal use only
+-- This function is for internal use only (unexported)
 -- It is only required for the Grassmannian matching fields
+-- We make use of this matrix in 'matchingFieldIdeal'
 matchingFieldPolytopePoints = method(
     Options => {
 	ExtraZeroRows => 0
@@ -836,7 +838,7 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
     );
 
 
-
+-------------------------------------------
 -- isToricDegeneration for a Matching Field
 -- checks if the matching field ideal is equal to the initial ideal of the Grassmannian
 
@@ -850,6 +852,7 @@ isToricDegeneration(FlMatchingField) := MF -> (
     )
 
 
+-------------------------------
 -- subring of a matching field
 -- overloaded method (subring is originally a method from the package SubalgebraBases)
 -- the pleucker algebra inside inside a ring with term order
@@ -877,6 +880,7 @@ subring(FlMatchingField) := opts -> MF -> (
 
 ---------------------------------------------
 -- Newton-Okounkov body for a matching field
+-- 
 NOBody = method()
 
 -- Grassmannian matching fields
@@ -973,6 +977,7 @@ weightMatrixCone = method(
 	ExtraZeroRows => 0 -- adds this many rows of 0 to each inequality, used for FlMatchingField cone
 	}
     )
+
 weightMatrixCone(GrMatchingField) := opts -> MF -> (
     if opts.ExtraZeroRows == 0 and MF.cache.?computedWeightMatrixCone then (
 	MF.cache.computedWeightMatrixCone
@@ -1025,6 +1030,7 @@ weightMatrixCone(FlMatchingField) := opts -> MF -> (
 	C
 	)
     )
+
 ----------------------------------------------------------
 -- isCoherent
 -- check if a matching field is induced by a weight matrix
@@ -1089,6 +1095,7 @@ linearSpanTropCone = method(
 	VerifyToricDegeneration => true
 	}
     )
+
 linearSpanTropCone(GrMatchingField) := opts -> MF -> (
     if not MF.cache.?computedLinearSpanTropCone then (
     	if opts.VerifyToricDegeneration and not isToricDegeneration MF then (
