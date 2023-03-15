@@ -874,8 +874,14 @@ subring(FlMatchingField) := opts -> MF -> (
     MF.cache.mfSubring
     )
 
--- Newton-Okounkov body for the Grassmannian from a matching field
+
+---------------------------------------------
+-- Newton-Okounkov body for a matching field
 NOBody = method()
+
+-- Grassmannian matching fields
+-- the NO body has vertices that are directly read from the Sagbi basis
+-- So, the lead terms can be simply scaled and the NO body is the convex hull
 NOBody(GrMatchingField) := MF -> (
     if not MF.cache.?mfNOBody then ( 
     	-- compute the initial algbera of the Pleucker algebra wrt the weight term order
@@ -886,8 +892,44 @@ NOBody(GrMatchingField) := MF -> (
 	);
     MF.cache.mfNOBody
     )
--- TODO: NO-Body for partial flag varieties
--- >> add a grading matrix etc.
+
+-- Flag matching fields
+-- each Pleucker form has a specific grading
+-- the sagbi generators are lifted by their grading
+-- and we compute the NO body by taking the slice of the cone 
+-- that corresponds to the grading (1 .. 1)
+NOBody(FlMatchingField) := MF -> (
+    if not MF.cache.?mfNOBody then (
+	kmax := max MF.kList;
+	initialAlgebraGens := first entries leadTerm subalgebraBasis subring MF;
+	generatorExponents := matrix apply(initialAlgebraGens, f -> (exponents(f))_0);
+	gradingMap := matrix for gradingRow from 0 to #MF.kList -1 list(
+	    flatten for kIndex from 0 to #MF.kList -1 list (
+	        if gradingRow == kIndex then (
+		    toList(MF.n : 1)
+		    ) else if gradingRow == kIndex -1 then (
+		    toList(MF.n : -1)
+		    ) else (
+		    toList(MF.n : 0)
+		    )
+		)
+	    );
+	coneRays := (gradingMap * transpose generatorExponents) || (transpose generatorExponents); 
+	polyCone := coneFromVData coneRays;
+	-- take the part of the cone with grading (1 .. 1)
+	slice := polyhedronFromHData (
+	    matrix {toList(#MF.kList + kmax * MF.n : 0)},
+	    matrix {{0}},
+	    id_(ZZ^(#MF.kList)) | matrix for row in MF.kList list for col from 1 to (MF.n * kmax) list 0,
+	    transpose matrix {toList(#MF.kList : 1)}
+	    );
+	NOBodyAsIntersection := intersection(polyCone, slice);
+	-- simplify by removing the grading part
+	NOBodyVertices := (vertices NOBodyAsIntersection)^{#MF.kList .. #MF.kList + MF.n * kmax - 1};
+	MF.cache.mfNOBody = convexHull NOBodyVertices;
+	);
+    MF.cache.mfNOBody
+    )
 
 -----------------------
 -- Regular Subdivision of a set of points
@@ -1139,10 +1181,8 @@ doc ///
         The Pleucker ideal of a matching field
       Usage
       	I = pleuckerIdeal L
-	I = pleuckerIdeal LL
       Inputs
-        L: GrMatchingField 
-	LL: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
       Outputs
         I: Ideal
 	  The Pleucker ideal associated to the corresponding Grassmannian or partial flag variety
@@ -1263,7 +1303,7 @@ doc ///
       Headline
         The Grassmannian matching fields of a Flag matching field
       Usage
-        matchingFieldList = getDrMatchingFields L
+        matchingFieldList = getGrMatchingFields L
       Inputs
         L: FlMatchingField 
       Outputs
@@ -1331,7 +1371,7 @@ doc ///
 	  In the above example, we construct the flag matching field for the full
 	  flag variety induced by the given weight matrix. The tuples for the 
 	  flag matching field are listed by their size. Similarly to Grassmannian
-	  matching fields: @TO "GrMatchingField"@, the function @TO "isToricdegeneration"@
+	  matching fields: @TO "GrMatchingField"@, the function @TO "isToricDegeneration"@
 	  checks the equality of the @TO "matchingFieldIdeal"@ and the initial ideal
 	  of the @TO "pleuckerIdeal"@ with respect to the weight of the matching field.
 	  
@@ -1390,11 +1430,9 @@ doc ///
       Headline
         The toric ideal of a matching field
       Usage
-        I = matchingFieldIdeal(Lgr)
-	I = matchingFieldIdeal(Lfl)
+        I = matchingFieldIdeal L
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
 	Strategy => String
 	  either "M2" or "4ti2" the strategy for computing the generators
       Outputs
@@ -1454,11 +1492,9 @@ doc ///
       Headline
         The polytope of a matching field
       Usage
-        P = matchingFieldPolytope(Lgr)
-	P = matchingFieldPolytope(Lfl)
+        P = matchingFieldPolytope L
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
 	ExtraZeroRows => ZZ 
 	  produces a matching field polytope embedded in a larger space
 	  typically used for producing polytopes of flag matching field
@@ -1530,11 +1566,9 @@ doc ///
       Headline
         The ring map of the Pleucker embedding
       Usage
-        m = pleuckerMap(Lgr)
-	m = pleuckerMap(Lfl)
+        m = pleuckerMap L
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
       Outputs
         m: RingMap
 	  the ring map of the Pleucker embedding
@@ -1594,11 +1628,9 @@ doc ///
       Headline
         The cone of weight matrices that induce the matching field
       Usage
-        C = weightMatrixCone(Lgr)
-	C = weightMatrixCone(Lfl)
+        C = weightMatrixCone L
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
 	ExtraZeroRows => ZZ
 	  produces a cone embedded in a higher dimensional space
 	  typically used for constructing weight matrix cones for flag matching fields
@@ -1700,11 +1732,9 @@ doc ///
       Headline
         Does the matching field give rise to a toric degeneration
       Usage
-        result = isToricDegeneration Lgr
-	result = isToricDegeneration Lfl 
+        result = isToricDegeneration L
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
       Outputs
         result: Boolean
 	  does the matching field give rise to a toric degeneration
@@ -1740,11 +1770,9 @@ doc ///
       Headline
         The tuples of a matching field
       Usage
-        tuples = getTuples Lgr
-	tuples = getTuples Lfl 
+        tuples = getTuples L 
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
       Outputs
         tuples: List
 	  A list of subsets of $1, \dots, n$; the tuples of the matching field
@@ -1781,11 +1809,9 @@ doc ///
       Headline
         Is the matching field coherent
       Usage
-        result = isCoherent Lgr
-	result = isCoherent Lfl 
+        result = isCoherent L
       Inputs
-        Lgr: GrMatchingField
-	Lfl: FlMatchingField
+        L: {GrMatchingField, FlMatchingField}
       Outputs
         result: Boolean
 	  is the matching field coherent, i.e., induced by a weight matrix
@@ -1811,7 +1837,6 @@ doc ///
         weightMatrixCone
       Subnodes
 ///
-
 
 doc ///
       Key
@@ -1951,6 +1976,321 @@ doc ///
       Subnodes
 ///
 
+doc ///
+      Key
+         matchingFieldFromPermutation
+        (matchingFieldFromPermutation, List, ZZ, List)
+	(matchingFieldFromPermutation, ZZ, ZZ, List)
+	[matchingFieldFromPermutation, UsePrimePowers]
+	[matchingFieldFromPermutation, PowerValue]
+	[matchingFieldFromPermutation, RowNum]
+	[matchingFieldFromPermutation, ScalingCoefficient]
+      Headline
+        matching field parametrised by permutations
+      Usage
+        Lgr = matchingFieldFromPermutation(k, n, S)
+	Lfl = matchingFieldFromPermutation(kList, n, S)
+      Inputs
+        k: ZZ
+	  positive integer; the size of the tuples of the Grassmannian matching field
+	kList: List
+          positive integers; the sizes of the tuples of the flag matching field
+	n: ZZ
+	  positive integer; the tuples have entries in 1 .. n
+        RowNum => ZZ
+	  which row of the digonal weight matrix to permute
+	UsePrimePowers => Boolean
+	  use multiples of prime power used for the entries of the diagonal weight matrix
+	PowerValue => ZZ
+	  use multiples of powers this value in the diagonal weight matrix 
+	ScalingCoefficient => ZZ
+	  the value by which to scale the permuted row of the diagonal weight matrix
+      Outputs
+	Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Description
+        Text
+	  Let $M_0 \in \RR^{k \times n}$ be a matrix that induced the diagonal matching field.
+	  Usually, we take this matrix to be $(m_{i,j})$ with $m_{i,j} = (n-j)n^(i-2)$ if $i > 1$ and $m_{i,j} = 0$ if $i = 1$.
+	  Note that this matrix is different to the weight matrix of the matching field produced by the function @TO "diagonalMatchingField"@,
+	  however the matching fields are the same. 
+	  Given a permutation $\sigma \in S_n$, the matching field associated to $\sigma$ has weight matrix
+	  $M_\sigma$, which is the same as $M_0$ except in the second row, which is given by $\sigma(1), \sigma(2), \dots, \sigma(n)$.
+	  If $\sigma = (n, n-1, \dots, 1) \in S_n$ is the permutation written in single-line notation, then the matching field induced by $M_\sigma$ is
+	  the diagonal matching field.
+	Example
+	  L0 = diagonalMatchingField(3, 6) 
+	  getWeightMatrix L0
+	  L1 = matchingFieldFromPermutation(3, 6, {6,5,4,3,2,1})
+	  getWeightMatrix L1
+	  L0 == L1
+	  L2 = matchingFieldFromPermutation(3, 6, {1,3,2,6,4,5})
+	  getWeightMatrix L2
+	  L3 = matchingFieldFromPermutation({1,2,3}, 6, {1,4,2,3,6,5})
+	  getWeightMatrix L3
+	Text
+	  The optional argument @TO "RowNum"@ is used to change which row of $M_0$ is permuted.
+	Example
+	  L4 = matchingFieldFromPermutation(3, 6, {1,4,2,3,6,5}, RowNum => 3)
+	  getWeightMatrix L4
+	Text
+	  The optional argument @TO "UsePrimePowers"@ is used to modify the original diagonal weight matrix $M_0$. If
+	  the option is set to true then we use the matrix with entries $m_{i,j} = (n-j) p^(i-2)$ if $i>1$ and $m_{i,j} = 0$
+	  if $i = 1$, where $p \ge n$ is the smallest prime number greater than or equal to $n$.
+        Example
+	  L5 = matchingFieldFromPermutation(3, 6, {1,3,2,4,6,5}, UsePrimePowers => true)
+	  getWeightMatrix L5
+	Text
+	  The optional argument @TO "PowerValue"@ is used to give a specific value to $p$ in the diagonal weight matrix
+	  as described above. If the value is not positive, then the argument is ignored. This option should be used carefully.
+	  If the power value is set incorrectly (typically by setting a value that is too low) then the weight matrix may not be {\it generic},
+	  i.e., it does not define a matching field. However, in such a case, the function produces a matching field without error, 
+	  as shown in the example $L7$ below. Working with such matching fields may lead to unexpected behaviours.
+	Example
+	  L6 = matchingFieldFromPermutation(3, 6, {1,3,2,4,6,5}, PowerValue => 10)
+	  getWeightMatrix L6
+	  L7 = matchingFieldFromPermutation(3, 6, {5,4,3,2,1,0}, PowerValue => 1)
+	  getWeightMatrix L7
+	Text
+	  Any positive integer supplied to the argument @TO "PowerValue"@ takes precedence over @TO "UsePrimePowers"@. 
+	  The optional argument @TO "ScalingCoefficient"@ is used to scale the entries of the row that is permuted by the permutation.
+	  If @TO "UsePrimePowers"@ is set to true, and $p \ge n$ is the smallest prime number less than $n$, then the scaling coefficient
+	  can be set to any $c \in \{1, 2, \dots, p-1\}$ and the resulting weight matrix is guaranteed to be generic.
+	Example
+	  L8 = matchingFieldFromPermutation(3, 6, {6,1,5,2,3,4}, UsePrimePowers => true, ScalingCoefficient => 3)
+	  getWeightMatrix L8
+	  isToricDegeneration L8
+	Text
+	  The above is an example of a {\it hexagonal matching field}, which does not give rise to a toric degeneration of
+	  the Grassmannian Gr$(3, 6)$.
+      SeeAlso
+      Subnodes
+///
+
+doc ///
+      Key
+         NOBody
+        (NOBody, GrMatchingField)
+	(NOBody, FlMatchingField)
+      Headline
+        Newton-Okounkov body of the matching field
+      Usage
+        D = NOBody L
+      Inputs
+        L: {GrMatchingField, FlMatchingField}
+      Outputs
+        D: Polyhedron
+	  Newton-Okounkov body of the matching field
+      Description
+        Text
+	  The Pleucker algebra is generated by Pleucker forms given by top-justified
+	  minors of a generic matrix. The Pleucker algebra can be constructed with
+	  the function @TO "subring"@, of the image of the Pleucker ring map that can be
+	  accessed with the function @TO "pleuckerMap"@. Note that the ambient ring
+	  containg the Pleucker algebra has a weight-based term order that comes from
+	  the matching field. We compute a subalgebra basis (SAGBI basis) using the
+	  package @TO "SubalgebraBases"@ for the Pleucker algebra.
+	  
+	  The Newton-Okounkov body of the matching field is contructed from this subalgebra basis.
+	  In the case of Grassmannian matching fields, the NO body is simply the convex
+	  hull of the exponent vectors of the initial terms of the subalgebra basis.
+	  If the matching field gives rise to a toric degeneration (see the function @TO "isToricDegeneration"@)
+	  then the NO body coincides with the matching field polytope
+	  (see @TO "matchingFieldPolytope"@) because the maximal minors form a subalgebra basis for the Pleucker algebra.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  P = matchingFieldPolytope L
+	  vertices P
+	  noBody = NOBody L
+	  vertices noBody
+	  P == noBody
+	Text
+	  In the case of flag matching fields, the NO body is computed in a similar way.
+	  First a subalgebra basis is computed for the Pleucker algebra.
+	  However, to construct the NO body from the subalgebra basis, we need to take into account 
+	  the grading on the Pleucker forms. From the geometric persepctive, we are simply using the
+	  Segre embedding to view the flag variety as a subvariety of a suitably large projective space.
+	Example
+	  L = diagonalMatchingField({1,2}, 4)
+	  noBody = NOBody L
+	  vertices noBody
+	  noBody == matchingFieldPolytope L
+	Text
+	  Note that the matching field polytope is equal to the NO body if and only if the matching field
+	  gives rise to a toric degeneration. So, for a {\it hexagonal matching field} for Gr$(3,6)$, the
+	  NO body has an additional vertex. We construct a hexagonal matching field using the fucntion
+	  @TO "matchingFieldFromPermutation"@ as follows.
+	Example
+	  L = matchingFieldFromPermutation(3, 6, {6,1,5,2,3,4}, UsePrimePowers => true, ScalingCoefficient => 3)
+	  isToricDegeneration L
+	  vertices NOBody L
+      SeeAlso
+        matchingFieldFromPermutation
+	isToricDegeneration
+	SubalgebraBases
+	subring
+	pleuckerMap
+      Subnodes
+///
+
+doc ///
+      Key
+        UsePrimePowers
+	PowerValue
+      Headline
+        use a diagonal weight matrix with multiples of certain powers
+      Usage
+        Lgr = matchingFieldFromPermutation(k, n, S, UsePrimePowers => b, PowerValue => v)
+	Lfl = matchingFieldFromPermutation(kList, n, S, UsePrimePowers => b, PowerValue => v) 
+      Inputs
+        k: ZZ
+	kList: List
+	n: ZZ
+	S: List
+	  a permutation of $1, \dots, n$
+	r: Boolean
+	  set whether prime powers are to be used
+	v: ZZ
+	  set the value of the powers to be used
+      Outputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Description
+        Text
+	  The options @TO "UsePrimePowers"@ and @TO "PowerValue"@ are optional arguments for the function
+	  @TO "matchingFieldFromPermutation"@, which constructs a matching field by permuting a row (usually the second row)
+	  of a weight matrix that gives rise to the diagonal matching field.
+	  
+          If the option @TO "UsePrimePowers"@ is set to true, then the underlying {\it diagonal} weight matrix is given by
+	  $M_0 = (m_{i,j})$ with $m_{i,j} = (n-j) p^(i-2)$ if $i > 1$ and $m_{i,j} = 0$ if $i = 1$, where
+	  $p \ge n$ is the smallest prime number greater than or equal to $n$.
+	Example
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {1,2,3,4,5,6}, UsePrimePowers => false)
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {1,2,3,4,5,6}, UsePrimePowers => true)
+    	Text
+	  To set the value of $p$ in the above matrix to a specific value, use the option @TO "PowerValue"@.
+	Example
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {1,2,3,4,5,6}, PowerValue => 10)
+      	Text
+	  The option @TO "PowerValue"@ overrides the option @TO "UsePrimePowers"@. 
+	  
+	  {\bf Warning.} Certain values for the option @TO "PowerValue"@ will produce weight matrices that are
+	  not {\it generic}, i.e., the initial term of the corresponding Pleucker forms are not all monomials, 
+	  hence the weight matrix does not define a matching field. The function @TO "matchingFieldFromPermutation"@ will
+	  produce a matching field, which may lead to unexpected behaviours. 
+	  
+	  {\bf Precise details.} The value of $p$ is determined as follows. 
+	  The option @TO "PowerValue"@ is used if it is a positive value. If @TO "PowerValue"@ is not positive
+	  then the function checks to see if the option @TO "UsePrimePowers"@ is set to true. If it is, then
+	  the value of $p$ is set to be the small prime number greater than or equal to $n$. Otherwise, if
+	  @TO "UsePrimePowers"@ is set to false, then $p$ is set to be $n$.
+      SeeAlso
+        matchingFieldFromPermutation
+        RowNum
+      Subnodes
+///
+
+doc ///
+      Key
+        ScalingCoefficient
+      Headline
+        scale the permuted row of the weight matrix
+      Usage
+        Lgr = matchingFieldFromPermutation(k, n, S, ScalingCoefficient => c)
+	Lfl = matchingFieldFromPermutation(kList, n, S, ScalingCoefficient => c) 
+      Inputs
+        k: ZZ
+	kList: List
+	n: ZZ
+	S: List
+	  a permutation of $1, \dots, n$
+	c: ZZ
+	  scale the value of permuted row by $c$
+      Outputs
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
+      Description
+        Text
+	  The function @TO "matchingFieldFromPermutation"@ constructs a weight matrix
+	  by permuting the row of a weight matrix that induces the diagonal matching field.
+	  The option @TO "ScalingCoefficient"@ sets the scaling coefficient of the row
+	  being permuted, which by default is $1$.
+	
+	  Note that by setting the option @TO "UsePrimePowers"@ to true, it guarantees that the
+	  weight matrix is {\it generic}, i.e., the matching field is well defined, as long as the scaling coefficient is less
+	  than the prime power used.
+	Example	  
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {1, 3, 2, 4, 6, 5}, UsePrimePowers => true, ScalingCoefficient => 1)
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {1, 3, 2, 4, 6, 5}, UsePrimePowers => true, ScalingCoefficient => 2)
+	  getWeightMatrix matchingFieldFromPermutation(3, 6, {1, 3, 2, 4, 6, 5}, UsePrimePowers => true, ScalingCoefficient => 3)
+      SeeAlso
+        matchingFieldFromPermutation
+        RowNum
+	UsePrimePowers
+      Subnodes
+///
+
+doc ///
+      Key
+         diagonalMatchingField
+        (diagonalMatchingField, ZZ, ZZ)
+	(diagonalMatchingField, List, ZZ)
+	(diagonalMatchingField, ZZ)
+      Headline
+        the diagonal matching field
+      Usage
+        Lgr = diagonalMatchingField(k, n)
+	Lfl = diagonalMatchingField(kList, n)
+	Lfl = diagonalMatchingField(n)
+      Inputs
+        k: ZZ
+	kList: List
+	n: ZZ
+      Outputs
+        Lgr: GrMatchingField
+	  diagonal Grassmannian matching field
+	Lfl: FlMatchingField
+	  diagonal flag matching field
+      Description
+        Text
+	  The diagonal matching field is defined to be the matching field
+	  whose tuples are all in ascending order. It is a coherent matching field
+	  so it is induced by a weight matrix.
+	  
+	  The weight matrix used to construct the diagonal matching field us given by
+	  $M = (m_{i,j})$ with $m_{i,j} = (i-1)(n-j+1)$.
+	Example
+	  L = diagonalMatchingField(3, 6)
+	  getWeightMatrix L
+	Text
+	  The function @TO "diagonalMatchingField"@ can be used in three different ways.
+	  If it is supplied two integers $(k,n)$ then it produces the diagonal matching field
+	  for the Grassmannian, as shown in the above example.
+	  If it is supplied a single integer $n$, then it produces the diagonal matching field
+	  for the full flag variety. The matching fields of the full flag variety have tuples of
+	  size $1, 2, \dots, n-1$.
+	  The function can be made to produce diagonal matching fields for partial flag varieties
+	  by supplying it a list $kList$ and integer $n$. The sizes of the tuples are the entries
+	  of $kList$.
+	Example
+	  L = diagonalMatchingField 4;
+	  netList getTuples L
+	  L = diagonalMatchingField({1, 2}, 5);
+    	  netList getTuples L
+	Text
+	  Diagonal matching fields always give rise to toric degenerations
+	  of Grassmannians and flag varieties. In the literature, 
+	  this toric degeneration is also known as Gelfand-Tsetlin
+	  degeneration. The matching field polytopes for the diagonal matching field, 
+	  which can be constructed with the function @TO "matchingFieldPolytope"@,
+	  are unimodularly equivalent to Gelfand-Tsetlin polytopes.   
+      SeeAlso
+        GrMatchingField
+	FlMatchingField
+	isToricDegeneration
+	matchingFieldPolytope
+      Subnodes
+///
 
 
 
