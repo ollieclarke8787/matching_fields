@@ -701,7 +701,7 @@ pleuckerMap(FlMatchingField) := MF -> (
     )
 
 
-
+----------------------------------
 -- matching field from permutation
 -- Fix a permutation S, take a 'highly generic' weight matrix M
 -- that induces the diagonal matching field 
@@ -1177,6 +1177,45 @@ doc ///
 	  isToricDegeneration L
       SeeAlso
       Subnodes
+        :Main objects
+	  GrMatchingField
+	  FlMatchingField
+	  
+	:Constructing matching fields
+	  grMatchingField
+	  flMatchingField
+	  diagonalMatchingField
+	  matchingFieldFromPermutation
+	
+	:Basic properties and functions
+	  getTuples
+	  getGrMatchingFields
+	  isCoherent
+	  getWeightMatrix
+	  getWeightPleucker
+	  isToricDegeneration
+	  (net, FlMatchingField)
+	  (symbol ==, GrMatchingField, GrMatchingField)
+	  (symbol ==, FlMatchingField, FlMatchingField)
+	  
+	:Rings, ideals and maps
+	  pleuckerIdeal
+	  matchingFieldIdeal
+	  pleuckerMap
+	  matchingFieldRingMap
+	  (subring, FlMatchingField)
+	  
+	:Convex bodies and polyhedra
+	  matchingFieldPolytope
+	  NOBody
+	  weightMatrixCone
+	  
+	:Dressians and matroids
+	  algebraicMatroid
+	  algebraicMatroidCircuits
+	  algebraicMatroidBases
+	  matroidSubdivision
+	  linearSpanTropCone
 ///
 
 doc ///
@@ -1184,12 +1223,16 @@ doc ///
         pleuckerIdeal
 	(pleuckerIdeal, FlMatchingField)
 	(pleuckerIdeal, GrMatchingField)
+	(Grassmannian, GrMatchingField)
       Headline
         The Pleucker ideal of a matching field
       Usage
-      	I = pleuckerIdeal L
+      	I = pleuckerIdeal Lgr
+	I = pleuckerIdeal Lfl
+	I = Grassmannian Lgr
       Inputs
-        L: {GrMatchingField, FlMatchingField}
+        Lgr: GrMatchingField
+	Lfl: FlMatchingField
       Outputs
         I: Ideal
 	  The Pleucker ideal associated to the corresponding Grassmannian or partial flag variety
@@ -1227,8 +1270,7 @@ doc ///
         Example
 	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {4,1}, {2,3}, {2,4}, {3,4}})
 	  isCoherent L
-	  -- I = pleuckerIdeal L -- "error: expected a coherent matching field"
-      
+	  -- I = pleuckerIdeal L -- "error: expected a coherent matching field"      
       SeeAlso
       Subnodes
 ///
@@ -1560,9 +1602,10 @@ doc ///
 	  L = diagonalMatchingField({1,2}, 4)	
     	  Q = matchingFieldPolytope L 
 	  Q == P12
-	
       SeeAlso
+        ExtraZeroRows
       Subnodes
+        ExtraZeroRows
 ///
 
 doc ///
@@ -1888,7 +1931,8 @@ doc ///
         Text
           The option @TO "ExtraZeroRows"@ is used by the functions @TO "matchingFieldPolytope"@ and
 	  @TO "weightMatrixCone"@. In each case, the option controls the ambient space of the polyhedron.
-	  By default the value is zero. It is typically used interally for computing Minkowski sums.
+	  By default the value is zero. It is typically used interally for computing Minkowski sums of
+	  polyhedra that would ordinarily belong to different ambient spaces.
 	Example
 	  L = diagonalMatchingField(2, 4)
 	  P = matchingFieldPolytope(L, ExtraZeroRows => 1)
@@ -1921,6 +1965,8 @@ doc ///
 	    {TO {"diagonalMatchingField"}, "-- the diagonal matching field"},
 	    {TO {"matchingFieldFromPermutation"}, "-- family of matching fields indexed by permutations"}
       	  }@
+	  
+	  Two Grassmannian matching fields are said to be equal if and only if their tuples are the same.
 	  
 	  {\bf Technical details.}
 	  A Grassmannian matching field is derived from the class @TO "HashTable"@. All
@@ -2071,7 +2117,14 @@ doc ///
 	  The above is an example of a {\it hexagonal matching field}, which does not give rise to a toric degeneration of
 	  the Grassmannian Gr$(3, 6)$.
       SeeAlso
+        RowNum
+	UsePrimePowers
+	PowerValue
+	ScalingCoefficient
       Subnodes
+        RowNum
+	UsePrimePowers
+	ScalingCoefficient
 ///
 
 doc ///
@@ -2299,6 +2352,385 @@ doc ///
       Subnodes
 ///
 
+doc ///
+      Key
+         matchingFieldRingMap
+        (matchingFieldRingMap, FlMatchingField)
+        (matchingFieldRingMap, GrMatchingField)
+      Headline
+        monomial map of the matching field
+      Usage
+        m = matchingFieldRingMap L
+      Inputs
+        L: {GrMatchingField, FlMatchingField}
+      Outputs
+        m: RingMap
+	  monomial ring map whose kernel is the matching field ideal
+      Description
+        Text
+	  Each tuple $J = (j_1, j_2, \dots, j_k)$ of a matching field defines a monomial given by
+	  $m(J) = c x_{1, j_1} x_{2, j_2} \dots x_{k, j_k}$ where the coefficient $c \in \{+1, -1\}$ is
+	  the sign of the permutation that permutes $J$ into ascending order. Equivalently,
+	  $c = (-1)^d$ where $d = |\{(a, b) \in [k]^2 : a < b, j_a > j_b \}|$ is the number of descents of
+	  $J$. The monomial $m(J)$ is the lead term of the correponding Pleucker form with respect to the
+	  weight order given by the matching field.
+	Example
+	  L = matchingFieldFromPermutation(2, 4, {2, 3, 4, 1})   
+	  getTuples L
+	  matchingFieldRingMap L
+	  pleuckerForms = matrix pleuckerMap L
+	  leadTerm pleuckerForms
+	  leadTerm pleuckerForms == matrix matchingFieldRingMap L
+	Text
+	  Note that the polynomial rings have weight-based term orders that depend on a weight matrix that
+	  induces the matching field. So if the matching field supplied is not coherent then function gives an
+	  error. To check that a matching field is coherent use the function @TO "isCoherent"@.
+      SeeAlso
+        getTuples
+	pleuckerMap
+	isCoherent
+      Subnodes
+///
+
+doc ///
+      Key
+         getWeightPleucker
+        (getWeightPleucker, FlMatchingField)
+        (getWeightPleucker, GrMatchingField)
+      Headline
+        weight of the Pleucker variables induced by the weight matrix
+      Usage
+        W = getWeightPleucker L
+      Inputs
+        L: {GrMatchingField, FlMatchingField}
+      Outputs
+        W: List
+	  weights of the Pleucker variables induced by the matching field
+      Description
+        Text
+	  Suppose that a coherent matching field is induced by a $k \times n$ weight matrix $M$.
+	  The Pleucker forms are minors of a generic matrix of variables. For example, for the Grassmannian
+	  the Pleucker forms are the maximal minors. The weight matrix $M$ is {\it generic}, which is equivalent
+	  to the property: the initial form of each Pleucker form with respect to $M$ is a monomial.
+	  The weight of the initial term of each Pleucker form is the induced weight on the ring in the Pleucker
+	  variables, which is given by the function @TO "getWeightPleucker"@. By convention, the Pleucker variables
+	  are listed such that their subsets are in RevLex order, which is the order given by the function @TO "subsets"@.
+	  
+	  An equivalent formulation is: the Pleucker weight vector is the tuple of tropical determinants of $M$, also
+	  known as the image of $M$ under the {\it tropical Stiefel map} (or its natural generalisation to partial
+	  flag varieties).
+        Example
+	  L = diagonalMatchingField(2, 4)
+	  getWeightMatrix L
+	  getWeightPleucker L
+	Text
+	  Note that the polynomial rings associated to a matching field have weight vectors based on the weight matrix
+	  given by @TO "getWeightMatrix"@ and weight vector given by @TO "getWeightPleucker"@. The package @TO "MatchingFields"@
+	  uses a minimum convention but the initial terms of polynomials uses the maximum convention so the weight vectors may look
+	  a little different.
+	Example
+	  m = matchingFieldRingMap L
+	  describe source m
+	  describe target m
+      SeeAlso
+        getWeightMatrix
+	matchingFieldRingMap
+      Subnodes
+///
+
+doc ///
+      Key
+         getWeightMatrix
+        (getWeightMatrix, FlMatchingField)
+        (getWeightMatrix, GrMatchingField)
+      Headline
+        weight matrix that induces the matching field
+      Usage
+        M = getWeightMatrix L
+      Inputs
+        L: {GrMatchingField, FlMatchingField}
+      Outputs
+        M: Matrix
+	  weight matrix that induces the matching field
+      Description
+        Text
+	  If the supplied matching field is coherent, then this function returns a weight matrix that
+	  induces the matching field. If the matching field was originally defined by a weight matrix then
+	  that weight matrix is returned. Otherwise, a weight matrix is computed.
+	  The weight matrix is computed by computing the weight matrix cone, which can be returned with the
+	  function @TO "weightMatrixCone"@. If the supplied matching field is not coherent, then the function
+	  gives an error.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  getWeightMatrix L
+	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {3,2}, {1,4}, {4,2}, {3,4}})
+	  isCoherent L
+	  getWeightMatrix L
+	Text
+	  The weight on the ring containing the Pleucker forms, i.e., minors of a generic matrix, is based on
+	  the weight matrix returned by @TO "getWeightMatrix"@. Note that the package @TO "MatchingFields"@ uses
+	  the minimum convention but polynomial ring weight vectors use the maximum convention so some
+	  conversion is required.
+	Example
+	  pleuckerMap L
+	  R = target pleuckerMap L
+	  describe R
+      SeeAlso
+        getWeightPleucker
+	pleuckerMap
+	weightMatrixCone
+      Subnodes
+///
+
+doc ///
+      Key
+         linearSpanTropCone
+        (linearSpanTropCone, GrMatchingField)
+	[linearSpanTropCone, VerifyToricDegeneration]
+	VerifyToricDegeneration
+      Headline
+        linear span of the tropical cone associated to the matching field
+      Usage
+        linSpace = linearSpanTropCone L
+      Inputs
+        L: GrMatchingField
+	VerifyToricDegeneration => Boolean
+	  controls if @TO "isToricDegeneration"@ is run
+      Outputs
+        linSpace: Module
+	  a free QQ-module, the linear span of the cone in the tropicalisation
+	  corresponding to the matching field
+      Description
+        Text
+	  Suppose that $I$ is an ideal and $in_w(I)$ is a binomial initial ideal of $I$ with
+	  resepct to a weight $w$.
+	  Let $C_w$ be the cone in the Groebner fan of $I$ that contains $w$ in its relative interior.
+	  The linear span of $C_w$ can be constructed from a generating set of $in_w(I)$. Each generator
+	  $x^u - x^v$ gives a hyperplane defined by kernel of $(0 .. 0, 1_u, 0 .. 0, -1_v, 0 .. 0)$.
+	  The intersection of these hyperplanes gives the linear span of the Groebner cone.
+	  
+	  The function @TO "linearSpanTropCone"@ checks if the supplied matching field gives rise to 
+	  a toric degeneration, which happens if and only if the initial ideal of
+	  the Pleucker ideal is toric, i.e., the ideal is generated by binomials and is prime.
+	  If it is already known that the matching field gives rise to a toric degeneration then
+	  set the option @TO "VerifyToricDegeneration"@ to false to avoid repeating this check.
+	  
+	  The linear span is a realisation of the algebraic matroid associated to the matching field.
+	  See the function @TO "algebraicMatroid"@.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  linearSpanTropCone L
+	  algebraicMatroid L == matroid transpose gens linearSpanTropCone L
+      SeeAlso
+        algebraicMatroid
+	isToricDegeneration
+      Subnodes
+///
+
+doc ///
+      Key
+         grMatchingField
+        (grMatchingField, Matrix)
+	(grMatchingField, ZZ, ZZ, List)
+      Headline
+        Construct a matching field for the Grassmannian variety
+      Usage
+	L = flagMatchingField(weightMatrix)
+	L = flagMatchingField(k, n, tuples)
+      Inputs
+        k: ZZ
+	  positive integer; the size of the tuples of the matching field
+	n: ZZ
+	  positive integer; the tuples have entries in 1 .. n
+	weightMatrix: Matrix
+	  induces the matching field 
+      Outputs
+        L: GrMatchingField
+      Description
+        Text
+	  This function is the basic constructor for Grassmannian
+	  matching fields. The function outputs an instance of type @TO "GrMatchingField"@,
+	  which represents the matching field and stores all data related and 
+	  computed about it.
+	  
+	  There are two basic ways to define a Grassmannian matching field. The first way is to
+	  supply a weight matrix that induces the matching field. This produces a coherent matching field
+	  and is well-defined if the matrix is {\it generic}.
+	Example
+	  M = matrix {{0,0,0,0,0,0}, {1,6,2,5,3,4}, {60,50,10,20,40,30}}
+	  L1 = grMatchingField M
+	  getTuples L1
+	  isToricDegeneration L1
+	Text
+	  In the above example, we construct the Grassmannian matching field 
+	  induced by the given weight matrix. The tuples for the 
+	  matching field are listed in RevLex order. The function @TO "isToricDegeneration"@
+	  checks the equality of the @TO "matchingFieldIdeal"@ and the initial ideal
+	  of the @TO "pleuckerIdeal"@ with respect to the weight inducing the matching field.
+	  
+	  The second way to define a Grassmannian matching field
+	  is to list out its tuples.
+	Example
+	  T = {{1,4}, {2,4}, {3,4}, {3,1}, {3,2}, {1,2}}
+	  L2 = grMatchingField(2, 4, T)
+	  getTuples L2
+	  isCoherent L2
+	  getWeightMatrix L2
+	Text
+	  As shown in the example above, the first argument "k" 
+	  specifies the size of the tuples.
+	  The third argument is a list of the tuples.
+	  Note that the tuples can be supplied in any order. 
+	  If the list of tuples is not correct, i.e. if some are missing or duplicated then 
+	  the function raises an error.
+	  When a Grassmannian matching field is constructed in this way, it is not
+	  guaranteed to be coherent, i.e., it may not be induced by a weight matrix.
+	  The function @TO "isCoherent"@
+	  checks whether the matching field is coherent and the function @TO "getWeightMatrix"@
+	  returns a weight matrix that induces the matching field, if it exists.
+	  If the matching field is not coherent, then these methods produce an error.
+	  
+	  A note of caution. Two different weight matrices may induce the same matching field
+	  so the function @TO "getWeightMatrix"@ may return a weight matrix that is
+	  different to what may be expected. However, if a matching field is defined 
+	  by a weight matrix, then that weight matrix will be returned.
+      SeeAlso
+        GrMatchingField
+        FlMatchingField
+	flMatchingField
+	isToricDegeneration
+	pleuckerIdeal
+	matchingFieldIdeal
+	isCoherent
+	getWeightMatrix
+      Subnodes
+      
+///
+
+doc ///
+      Key
+        (symbol ==, FlMatchingField, FlMatchingField)
+      Headline
+        equality of flag matching fields
+      Usage
+        result = L1 == L2
+      Inputs
+        L1: FlMatchingField
+	L2: FlMatchingField
+      Outputs
+        result: Boolean
+	  are the flag matching fields equal
+      Description
+        Text
+	  Two matching fields are said to be equal if their tuples are equal.
+	  In the case of flag matching fields, the $kList$s must be equal.
+	Example
+	  L1 = diagonalMatchingField({1,2}, 4)
+	  getWeightMatrix L1
+	  getTuples L1
+	  L2 = flMatchingField({1,2}, matrix {{0,0,0,0}, {8,4,2,1}})
+	  getWeightMatrix L2
+	  getTuples L2
+	  L1 == L2
+	  L3 = flMatchingField({1,2}, 4, {{{1}, {4}, {3}, {2}}, {{3,4},{2,4},{1,4},{2,3},{1,3},{1,2}}})
+	  L3 == L1
+      SeeAlso
+        GrMatchingField
+        FlMatchingField
+	getTuples
+	getWeightMatrix
+      Subnodes
+      
+///
+
+doc ///
+      Key
+        (symbol ==, GrMatchingField, GrMatchingField)
+      Headline
+        equality of Grassmannian matching fields
+      Usage
+        result = L1 == L2
+      Inputs
+        L1: GrMatchingField
+	L2: GrMatchingField
+      Outputs
+        result: Boolean
+	  are the matching fields equal
+      Description
+        Text
+	  Two matching fields are said to be equal if their tuples are equal.
+	Example
+	  L1 = diagonalMatchingField(2, 4)
+	  getWeightMatrix L1
+	  getTuples L1
+	  L2 = grMatchingField matrix {{0,0,0,0}, {8,4,2,1}}
+	  getWeightMatrix L2
+	  getTuples L2
+	  L1 == L2
+	  L3 = grMatchingField(2, 4, {{3,4},{2,4},{1,4},{2,3},{1,3},{1,2}})
+	  L3 == L1
+      SeeAlso
+        GrMatchingField
+        FlMatchingField
+	getTuples
+	getWeightMatrix
+      Subnodes      
+///
+
+doc ///
+      Key
+        (net, GrMatchingField)
+	(net, FlMatchingField)
+      Headline
+        display a matching field
+      Usage
+        net L
+      Inputs
+        L: {GrMatchingField, FlMatchingField}
+      Description
+        Text
+	  The @TO "net"@ of a matching field displays $k$ or $kList$ and $n$ for that matching field.
+	  See @TO "GrMatchingField"@ and @TO "FlMatchingField"@.
+      SeeAlso
+        GrMatchingField
+        FlMatchingField
+      Subnodes      
+///
+
+doc ///
+      Key
+        (subring, GrMatchingField)
+	(subring, FlMatchingField)
+      Headline
+        Pleucker algebra of a (partial) flag variety
+      Usage
+        S = subring L
+      Inputs
+        L: {GrMatchingField, FlMatchingField}
+      Outputs
+        S: Subring
+	  generated by minors of a generic matrix of variables
+      Description
+        Text
+	  The Pleucker algebra for the Grassmannian is generated by the maximal minors of a
+	  generic $k \times n$ matrix of variables. Similarly, for a partial flag variety, the
+	  Pleucker algebra is generated by a collection of top-justified minors of a generic matrix
+	  of variables.
+	  
+	  A matching field specifies a weight order on the ambient ring containing the Pleucker algebra.
+	Example
+	  L = diagonalMatchingField(2, 4)
+	  S = subring L
+	  transpose gens S
+      SeeAlso
+        GrMatchingField
+        FlMatchingField
+	pleuckerMap
+	Subring
+      Subnodes      
+///
+
+
 
 
 
@@ -2334,6 +2766,24 @@ L' = matchingFieldFromPermutation(2, 4, {3,2,10,5});
 assert(getTuples L == getTuples L');
 ///
 
+TEST ///
+L = diagonalMatchingField(2, 4);
+S = subring L;
+assert(isSAGBI S);
+///
+
+TEST ///
+L = matchingFieldFromPermutation(2, 4, {2,3,1,4});
+S = subring L;
+assert(isSAGBI S);
+///
+
+TEST ///
+L = diagonalMatchingField(2, 4);
+S = set {{1, 3}, {1, 4}, {2, 3}, {2, 4}};
+assert(isSubset((algebraicMatroidCircuits L)_0, S))
+assert(isSubset(S, (algebraicMatroidCircuits L)_0))
+///
 
 end --
 restart
