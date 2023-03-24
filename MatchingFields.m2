@@ -115,7 +115,9 @@ protect symbol computedAlgebraicMatroid
 
 ---------------------------------------------
 -- Matching Field constructor
-grMatchingField = method()
+grMatchingField = method(
+    TypicalValue => GrMatchingField
+    )
 
 -- MF from weight matrix
 grMatchingField(Matrix) := M -> (
@@ -173,7 +175,9 @@ grMatchingField(ZZ, ZZ, List) := (Lk , Ln, L) -> (
     )
 
 -- Constructor for parital Flag Matching Fields
-flMatchingField = method()
+flMatchingField = method(
+    TypicalValue => FlMatchingField
+    )
 flMatchingField(List, Matrix) := (inputKList, inputWeightMatrix) -> (
     if numRows inputWeightMatrix < max inputKList then (
 	error("expected a matrix with at least " | toString max inputKList | " rows");
