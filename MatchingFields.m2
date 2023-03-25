@@ -213,7 +213,7 @@ flMatchingField(List, ZZ, List) := (LkList, Ln, L) -> (
     )
 
 net(GrMatchingField) := MF -> (
-    "Grassmannan Matching Field for Gr(" | toString MF.k | ", " | toString MF.n | ")"  
+    "Grassmannian Matching Field for Gr(" | toString MF.k | ", " | toString MF.n | ")"  
     )
 
 net(FlMatchingField) := MF -> (
