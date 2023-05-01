@@ -886,6 +886,9 @@ subring(FlMatchingField) := opts -> MF -> (
 -- Newton-Okounkov body for a matching field
 -- 
 NOBody = method()
+-- TODO: check if it's okay to always set 
+-- sagbi( .. AutoSubduce => false .. )
+--
 
 -- Grassmannian matching fields
 -- the NO body has vertices that are directly read from the Sagbi basis
@@ -893,7 +896,7 @@ NOBody = method()
 NOBody(GrMatchingField) := MF -> (
     if not MF.cache.?mfNOBody then ( 
     	-- compute the initial algbera of the Pleucker algebra wrt the weight term order
-    	initialAlgberaGens := first entries leadTerm subalgebraBasis subring MF; 
+    	initialAlgberaGens := first entries leadTerm subalgebraBasis(subring MF, AutoSubduce => false); 
     	generatorExponents := apply(initialAlgberaGens, f -> (exponents(f))_0);
     	NOBodyVertices := apply(generatorExponents, v -> ((MF.k) / sum(v))*v); -- normalize the vertices
     	MF.cache.mfNOBody = convexHull transpose matrix NOBodyVertices;
@@ -912,10 +915,10 @@ NOBody(FlMatchingField) := MF -> (
 	initialAlgebraGens := first entries leadTerm subalgebraBasis subring MF;
 	generatorExponents := matrix apply(initialAlgebraGens, f -> (exponents(f))_0);
 	gradingMap := matrix for gradingRow from 0 to #MF.kList -1 list(
-	    flatten for kIndex from 0 to #MF.kList -1 list (
-	        if gradingRow == kIndex then (
+	    flatten for kIndex from 0 to kmax-1 list (
+	        if MF.kList_gradingRow - 1 == kIndex then (
 		    toList(MF.n : 1)
-		    ) else if gradingRow == kIndex -1 then (
+		    ) else if MF.kList_gradingRow == kIndex then (
 		    toList(MF.n : -1)
 		    ) else (
 		    toList(MF.n : 0)
