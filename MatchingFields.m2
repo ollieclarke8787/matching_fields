@@ -11,7 +11,7 @@ newPackage(
     Headline => "Matching Fields in Macaulay2",
     Keywords => {"Grassmannian", "Flag Variety", "Polytopes", "Toric Degeneration", "SAGBI Basis"},
     DebuggingMode => false,
-    PackageExports => {"Polyhedra", "Tropical", "Binomials", "SubalgebraBases", "Matroids", "FourTiTwo"}
+    PackageExports => {"Polyhedra", "Tropical", "Binomials", "SubalgebraBases", "Matroids", "FourTiTwo", "Graphs"}
     )  
 
 -- ###########
@@ -48,7 +48,11 @@ export {
     "VerifyToricDegeneration",
     "algebraicMatroid",
     "algebraicMatroidBases",
-    "algebraicMatroidCircuits"
+    "algebraicMatroidCircuits",
+    "TopeField",
+    "topeField",
+    "isLinkage",
+    "amalgamation"
     }
 
 
@@ -1143,6 +1147,148 @@ algebraicMatroidCircuits(GrMatchingField) := MF -> (
     )
 
 
+
+-- tope fields
+-- a tope field (for Gr(k,n)) is pair:
+-- (i) GrMatchingField 
+-- (ii) type T = {t_1 .. t_s}
+--
+-- The notes in the code follow notation of Smith-Loho
+-- A matching field is a tope field of type {1 .. 1}
+-- the type is the 'right degree vector'
+-- for tuple (i_1,1 .. i_1,t_1 .. i_s,t_s) of the GrMatchingField, 
+-- we get one bipartite graph of the tope field where 1 in R is 
+-- adjacent to i_1,1 .. i_1,t_1 
+TopeField = new Type of HashTable
+
+topeField = method()
+topeField(GrMatchingField) := MF -> (
+    new TopeField from {
+	"type" => toList(MF.k : 1),
+	"matchingField" => MF
+	}
+    )
+
+topeField(GrMatchingField, List) := (MF, type) -> (
+    assert(sum type == MF.k);
+    new TopeField from {
+	"type" => type,
+	"matchingField" => MF
+	}
+    )
+
+net TopeField := TF -> (
+    ("Tope field: n = " | toString TF#"matchingField".n | " and type = " | toString TF#"type")
+    )
+
+getTuples(TopeField) := TF -> (
+    getTuples TF#"matchingField"
+    )
+
+-- isLinkage
+-- tests if a tope field is Linkage by checking that for each k+1 subset \tau, 
+-- the union of graphs M_\sigma where \sigma \subset \tau is a forest 
+--
+isLinkage = method()
+isLinkage(TopeField) := TF -> (
+    result := true;
+    MF := TF#"matchingField";
+    subsetList := subsets(1 .. MF.n, MF.k);
+    subsetIndex := new HashTable from for j from 0 to binomial(MF.n, MF.k)-1 list subsetList_j => j;
+    tuples := getTuples MF;
+    
+    for s in subsets(1 .. MF.n, MF.k + 1) do (
+	-- take the union of all edges over the k-subsets of s
+        -- list the vertices in L adjacent to each j in R in the union
+        -- L edges: 1 .. n
+	-- R edges: n+1 .. n+t where t = #TF#"type"
+	
+	edges := flatten flatten for s' in subsets(s, MF.k) list (
+	    tuple := tuples_(subsetIndex#s');  
+	    tuplePosition := -1;
+	    for typeIndex from 0 to #TF#"type"-1 list (
+	        t := TF#"type"_typeIndex;
+		 for j from 1 to t list (
+		    tuplePosition = tuplePosition +1;
+		    {s'_tuplePosition, MF.n + typeIndex + 1}
+		    )
+		)
+	    );
+        
+	G := graph edges;
+	if not isForest G then (
+	    result = false;
+	    break
+	    );
+	);
+    
+    result
+    )
+
+isLinkage(GrMatchingField) := MF -> (
+    isLinkage topeField MF
+    )
+
+-- tope field amalgamation
+amalgamation = method()
+amalgamation(ZZ, TopeField) := (i, TF) -> (
+    assert(isLinkage TF);
+    assert(1 <= i and i <= TF#"matchingField".n);
+    MF := TF#"matchingField";
+    subsetList := subsets(1 .. MF.n, MF.k);
+    subsetIndex := new HashTable from for j from 0 to binomial(MF.n, MF.k)-1 list subsetList_j => j;
+    tuples := getTuples MF;
+    
+    -- construct the new tuples of the matching field:
+    newTuples := for s in subsets(1 .. MF.n, MF.k + 1) list (
+	-- take the union of all edges over the k-subsets of s
+        -- list the vertices in L adjacent to each j in R in the union
+        edges := new MutableHashTable from for j from 0 to #TF#"type"-1 list (
+	    j => set {}
+	    );
+	
+	for s' in subsets(s, MF.k) do (
+	    tuple := tuples_(subsetIndex#s');  
+	    tuplePosition := -1;
+	    for typeIndex from 0 to #TF#"type"-1 do (
+	        t := TF#"type"_typeIndex;
+		edges#typeIndex = edges#typeIndex + set for j from 1 to t list (
+		    tuplePosition = tuplePosition +1;
+		    s'_tuplePosition
+		    );
+		);
+	    );
+	
+	matchedL := edges#(i-1);
+	matchedR := set {i-1};
+	
+	-- remove the edges of the union graph to get the amalgamation
+	while #matchedL < MF.k+1 do (
+	    for j from 0 to #TF#"type"-1 do (
+		if not member(j, matchedR) then (
+		    edges#j = edges#j - matchedL;
+		    if #edges#j == TF#"type"_j then (
+			matchedR = matchedR + set {j};
+			matchedL = matchedL + edges#j;
+			);
+		    );
+		);
+	    );
+        
+	fold((a,b) -> a | b, for j from 0 to #TF#"type"-1 list sort toList edges#j)
+	);
+    
+    
+    newMF := grMatchingField(MF.k+1, MF.n, newTuples);
+    newType := for j from 1 to #TF#"type" list if i == j then TF#"type"_(j-1)+1 else TF#"type"_(j-1); 
+    
+    topeField(newMF, newType)
+    )
+
+amalgamation(ZZ, GrMatchingField) := (i, MF) -> (
+    TF := topeField MF;
+    amalgamation(i, TF)
+    )
 
 
 -- #################
