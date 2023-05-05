@@ -1369,6 +1369,14 @@ doc ///
 	  algebraicMatroidBases
 	  matroidSubdivision
 	  linearSpanTropCone
+	
+	:Topes and tope fields
+	  TopeField
+	  topeField
+	  (net, TopeField)
+	  (getTuples, TopeField)
+	  isLinkage
+	  amalgamation
 ///
 
 doc ///
@@ -2883,9 +2891,186 @@ doc ///
       Subnodes      
 ///
 
+doc ///
+      Key
+        TopeField
+      Headline
+        A tope field structure on a matching field
+      Description
+        Text
+	  Tope fields were introduced in the study of tropical oriented matroids 
+	  and have been used generalise and study matching fields. In this package we follow the conventions
+	  of tope fields given by Smith and Loho, i.e., the type of a tope field contains positive entries. 
+	  
+	  The combinatorial data of a tope field is given by a matching field for $Gr(k,n)$ together with a type: $(t_1, \dots, t_s)$
+	  where $t_1 + \dots + t_s = k$ and each $t_i$ is a positive integer. The bipartite graphs of the tope field are encoded in the
+	  tuples of the matching field as follows. Let $(i_{1,1}, i_{1,2}, \dots i_{1,t_1}, i_{2,1}, \dots, i_{s, t_s})$ be a tuple of the 
+	  matching field, the bipartite graph on vertices $L := [n]$ and $R := [s]$ has edges $\{i_{j, t}, j\}$ where $j \in [s]$ and $t \in [t_j]$.
+	  
+	  For example, if $(1,3,2)$ is a tuple of a matching field for $Gr(3,4)$ of a tope field of type $(2,1)$, then corresponding bipartite graph on
+	  vertices $L = [4]$ and $R = [2]$ has edges: $E = \{11, 31, 22 \}$.
+	  
+	  The TopeField type in this package is a HashTable that stores the matching field and type. A tope field can be defined from a matching field
+	  using the constructor @TO "topeField"@. New tope fields can be constructed from old using the function @TO "amalgamation"@. Note that
+	  amalgamation is only defined for linkage tope field, see @TO "isLinkage"@.
+      SeeAlso
+	GrMatchingField
+	grMatchingField
+	topeField
+	amalgamation
+	isLinkage
+      Subnodes
+///
+
+
+doc ///
+      Key
+         topeField
+	(topeField, GrMatchingField)
+	(topeField, GrMatchingField, List)
+      Headline
+        Constructor of a tope field
+      Usage
+        TF = topeField MF
+	TF = topeField(MF, T)
+      Inputs
+        MF: GrMatchingField
+	  matching field containing the tuples of the tope field
+	T: List
+	  the type of the tope field
+      Outputs
+        TF: TopeField
+      Description
+        Text
+	  The standard constructor of a tope field. If the constructor is supplied with a matching field and no type, then 
+	  the type is automatically set to $1,1, \dots, 1$.
+	Example
+	  MF = diagonalMatchingField(3,6);
+	  TF = topeField MF
+	  TF' = topeField(MF, {2,1})  
+      SeeAlso
+	GrMatchingField
+	grMatchingField
+	TopeField
+	amalgamation
+      Subnodes
+///
 
 
 
+doc ///
+      Key
+         isLinkage
+	(isLinkage, GrMatchingField)
+	(isLinkage, TopeField)
+      Headline
+        Test if a tope field is linkage
+      Usage
+        result = isLinkage MF
+	result = isLinkage TF
+      Inputs
+        MF: GrMatchingField
+	TF: TopeField
+      Outputs
+        result: Boolean
+      Description
+        Text
+	  Consider a tope field given by a collection of bipartite graphs.
+	  The tope field is said to be linkage if for each $k+1$-subset $S$ of $[n]$, the union of the edges of the bipartite graphs
+	  $G$ where the non-isolated left-vertices of $G$ are contained in $S$, is a forest.
+	  
+	  Note that all coherent matching fields are linkage.
+	Example
+	  L = diagonalMatchingField(2,4);
+	  isLinkage L    
+      SeeAlso
+	GrMatchingField
+	grMatchingField
+	TopeField
+	amalgamation
+      Subnodes
+///
+
+
+
+doc ///
+      Key
+         amalgamation
+	(amalgamation, ZZ, GrMatchingField)
+	(amalgamation, ZZ, TopeField)
+      Headline
+        The $i$th amalgamation of a tope field
+      Usage
+        result = amalgamation(i, MF)
+	result = amalgamation(i, TF)
+      Inputs
+        i: ZZ
+	  the $i$th amalgamation
+        MF: GrMatchingField
+	TF: TopeField
+      Outputs
+        result: TopeField
+      Description
+        Text
+	  Computes the $i$th amalgamation of a tope field. Note that the tope field must be linkage for amalgamation to be
+	  well-defined.
+	Example
+	  L = matchingFieldFromPermutation(3,6,{4,5,6,1,2,3});
+	  getTuples L
+	  T = topeField L
+	  T1 = amalgamation(1, T)
+	  getTuples T1
+      SeeAlso
+	GrMatchingField
+	grMatchingField
+	TopeField
+	topeField
+	isLinkage
+      Subnodes
+///
+
+
+doc ///
+      Key
+        (net, TopeField)
+      Headline
+        display a tope field
+      Usage
+        net TF
+      Inputs
+        TF: TopeField
+      Description
+        Text
+	  The @TO "net"@ of a tope field displays $n$ and the type of the tope field.
+	  See @TO "TopeField"@.
+      SeeAlso
+        TopeField
+      Subnodes      
+///
+
+doc ///
+      Key
+        (getTuples, TopeField)
+      Headline
+        tuples of a tope field
+      Usage
+        tuples = getTuples TF
+      Inputs
+        TF: TopeField
+      Outputs
+        tuples: List
+	  list of tuples of the matching field of the tope field
+      Description
+        Text
+	  Lists the tuples of the matching field of the tope field.
+	Example
+	  L = diagonalMatchingField(3, 6);
+	  T = topeField L
+	  getTuples T
+      SeeAlso
+        TopeField
+      Subnodes      
+///
 
 -- #########
 -- # Tests #
