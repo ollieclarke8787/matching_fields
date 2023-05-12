@@ -966,13 +966,18 @@ pointRegularSubdivision(Matrix, Matrix) := (points, weight) -> (
 -- Note that w lies in the Dressian
 -- Compute the regular subdivision of the hypersimplex wrt w
 matroidSubdivision = method()
+matroidSubdivision(ZZ, ZZ, List) := (k, n, L) -> (
+    assert(#L == binomial(n, k));
+    SS := subsets(toList(1 .. n), k);
+    hyperSimplex := sub(transpose matrix for s in SS list for i from 1 to n list if member(i, s) then 1 else 0, QQ); -- sub to avoid entries in ZZ
+    subdivisionPieces := pointRegularSubdivision(hyperSimplex, matrix {L});
+    vertexLookup := new HashTable from for i from 0 to binomial(n, k) - 1 list hyperSimplex_{i} => SS_i;
+    for piece in subdivisionPieces list for c from 0 to numColumns piece - 1 list vertexLookup#(piece_{c})
+    )
+
 matroidSubdivision(GrMatchingField) := MF -> (
     if not MF.cache.?computedMatroidSubdivision then (
-    	SS := subsets(toList(1 .. MF.n), MF.k);
-	hyperSimplex := sub(transpose matrix for s in SS list for i from 1 to MF.n list if member(i, s) then 1 else 0, QQ); -- sub to avoid entries in ZZ
-	subdivisionPieces := pointRegularSubdivision(hyperSimplex, matrix {getWeightPleucker MF} );
-	vertexLookup := new HashTable from for i from 0 to binomial(MF.n, MF.k) - 1 list hyperSimplex_{i} => SS_i;
-	MF.cache.computedMatroidSubdivision = for piece in subdivisionPieces list for c from 0 to numColumns piece - 1 list vertexLookup#(piece_{c});
+    	MF.cache.computedMatroidSubdivision = matroidSubdivision(MF.k, MF.n, getWeightPleucker MF);
     	);
     MF.cache.computedMatroidSubdivision
     )
@@ -1243,7 +1248,7 @@ amalgamation(ZZ, TopeField) := (i, TF) -> (
     newTuples := for s in subsets(1 .. MF.n, MF.k + 1) list (
 	-- take the union of all edges over the k-subsets of s
         -- list the vertices in L adjacent to each j in R in the union
-        edges := new MutableHashTable from for j from 0 to #TF#"type"-1 list (
+	edges := new MutableHashTable from for j from 0 to #TF#"type"-1 list (
 	    j => set {}
 	    );
 	
@@ -1254,11 +1259,11 @@ amalgamation(ZZ, TopeField) := (i, TF) -> (
 	        t := TF#"type"_typeIndex;
 		edges#typeIndex = edges#typeIndex + set for j from 1 to t list (
 		    tuplePosition = tuplePosition +1;
-		    s'_tuplePosition
+		    tuple_tuplePosition
 		    );
 		);
 	    );
-	
+        
 	matchedL := edges#(i-1);
 	matchedR := set {i-1};
 	
@@ -1441,12 +1446,18 @@ doc ///
       Key
         matroidSubdivision
 	(matroidSubdivision, GrMatchingField)
+        (matroidSubdivision, ZZ, ZZ, List)
       Headline
         The matroid subdivision induced by the Pleucker weight of a coherent matching field
       Usage
         listOfBases = matroidSubdivision L
+	listOfBases = matroidSubdivision(k, n, pleuckerWeight)
       Inputs
         L: GrMatchingField 
+	k: ZZ
+	n: ZZ
+	pleuckerWeight: List
+	  the weight of the pleucker coordinates in revLex order using minimum convention
       Outputs
         listOfBases: List
 	  Each element is a list of the vertices of a maximal cell of the matroid subdivision of the hypersimplex induced by 
@@ -1461,6 +1472,10 @@ doc ///
 	Example
 	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}})
 	  netList matroidSubdivision L -- an octahedron sliced into 2 pieces
+	Text
+	  Whenever the function @TO "matroidSubdivision"@ is supplied with a Grassmannian matching field, the cached weight that induces the matching field
+	  is used for the computation of the matroid subdivision. Note that, if the function is supplied directly with the \textit{pleuckerWeight}, then
+	  the coordinates are ordered so that the corresponding sets are listed in reverse lexicographic order. 
       SeeAlso
       Subnodes
 ///
