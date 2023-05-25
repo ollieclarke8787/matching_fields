@@ -849,14 +849,21 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 -------------------------------------------
 -- isToricDegeneration for a Matching Field
 -- checks if the matching field ideal is equal to the initial ideal of the Grassmannian
+-- we already have that leadTerm(pleucker ideal) is a subset of matching field ideal
+-- so it suffices to reduce the generators of the matching field ideal modulo the
+-- leadTerm of the pleucker ideal
 
 isToricDegeneration = method ()
 isToricDegeneration(GrMatchingField) := MF -> (
-    (matchingFieldIdeal(MF) == ideal leadTerm(1, Grassmannian(MF)))
+    inPleucker := forceGB leadTerm(1, Grassmannian(MF));
+    zero(gens matchingFieldIdeal MF % inPleucker) 
+    --(matchingFieldIdeal(MF) == ideal leadTerm(1, pleuckerIdeal MF)) 
     )
 
 isToricDegeneration(FlMatchingField) := MF -> (
-    (matchingFieldIdeal(MF) == ideal leadTerm(1, pleuckerIdeal MF))
+    inPleucker := forceGB leadTerm(1, pleuckerIdeal MF);
+    zero(gens matchingFieldIdeal MF % inPleucker) 
+    --(matchingFieldIdeal(MF) == ideal leadTerm(1, pleuckerIdeal MF))
     )
 
 
