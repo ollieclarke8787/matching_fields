@@ -33,7 +33,7 @@ needsPackage "MatchingFields";
 D = diagonalMatchingField(2, 4);
 I = matchingFieldIdeal D
 
-J = pleuckerIdeal D
+J = plueckerIdeal D
 ideal leadTerm(1, J) == I
 isToricDegeneration D
 
@@ -44,7 +44,8 @@ transpose subalgebraBasis S
 M = matrix {{0,0,0,0,0,0},{18,3,15,6,9,12},{35,28,21,14,7,0}};
 L = grMatchingField M;
 T = subring L;
-numColumns subalgebraBasis T
+numgens T
+numgens sagbi T
 
 -- Section 3.3: Other functions
 restart
@@ -52,12 +53,16 @@ needsPackage "MatchingFields";
 L = grMatchingField matrix {{0,0,0,0,0,0},{18,3,15,6,9,12},{35,28,21,14,7,0}};
 P = matchingFieldPolytope L
 vertices P
+(volume P)*(dim P)!
 
-N = NOBody L
-vertices N
+Q = NOBody L
+vertices Q
+(volume Q)*(dim Q)!
+
+(vertices Q)_{0 .. 19} == vertices P
 
 L = grMatchingField matrix {{0,0,0,0,0},{1,3,2,5,4},{10,0,20,40,30}};
-getWeightPleucker L
+getWeightPluecker L
 netList matroidSubdivision L
 
 L = diagonalMatchingField(2, 6);
