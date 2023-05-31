@@ -34,6 +34,7 @@ export {
     "matchingFieldIdeal",
     "plueckerIdeal",
     "plueckerMap",
+    "plueckerAlgebra",
     "matchingFieldFromPermutation",
     "RowNum",
     "UsePrimePowers",
@@ -420,26 +421,44 @@ diagonalMatchingField(ZZ) := Ln -> (
 -- The weight vector v / matrix m stored in the matching field uses min convention
 -- so use weight vector {max v .. max v} - v for the M2 weight vector
 --  and the same for each row of m
-setupMatchingFieldRings = method()
-setupMatchingFieldRings(GrMatchingField) := MF -> (
+--
+-- MonomialOrder => "default" or "none"
+setupMatchingFieldRings = method(
+    Options => {
+	MonomialOrder => "default"
+	}
+    )
+setupMatchingFieldRings(GrMatchingField) := opts -> MF -> (
     local monomialOrder;
     if not MF.cache.?ringP then (
 	p := symbol p;
 	variables := for s in subsets(toList(1 .. MF.n), MF.k) list p_(if #s == 1 then s_0 else toSequence s);
-	monomialOrder = (
-	    maxVal := max (getWeightPluecker MF);
-	    {Weights => for val in (getWeightPluecker MF) list maxVal - val} 
+	if opts.MonomialOrder == "default" then (
+	    monomialOrder = (
+	    	maxVal := max (getWeightPluecker MF);
+	    	{Weights => for val in (getWeightPluecker MF) list maxVal - val} 
+	    	);
+	    ) else if opts.MonomialOrder == "none" then (
+	    monomialOrder = GRevLex;
+	    ) else (
+	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
 	    );
 	MF.cache.ringP = QQ[variables, MonomialOrder => monomialOrder];
 	);
     if not MF.cache.?ringX then (
 	x := symbol x;
-	monomialOrder = (
-	    weights := for wRow in entries getWeightMatrix MF list (
-		bigVal := toList(MF.n : (max wRow));
-		bigVal - wRow
-		); 
-	    {Weights => flatten weights} 
+	if opts.MonomialOrder == "default" then (
+	    monomialOrder = (
+	    	weights := for wRow in entries getWeightMatrix MF list (
+		    bigVal := toList(MF.n : (max wRow));
+		    bigVal - wRow
+		    ); 
+	    	{Weights => flatten weights} 
+	    	);
+	    ) else if opts.MonomialOrder == "none" then (
+	    monomialOrder = GRevLex;
+	    ) else (
+	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
 	    );
 	MF.cache.ringX = QQ[x_(1,1) .. x_(MF.k, MF.n), MonomialOrder => monomialOrder];
 	);
@@ -448,32 +467,44 @@ setupMatchingFieldRings(GrMatchingField) := MF -> (
 	);
     )
 
-setupMatchingFieldRings(FlMatchingField) := MF -> (
+setupMatchingFieldRings(FlMatchingField) := opts -> MF -> (
     local monomialOrder;
     if not MF.cache.?ringP then (
 	p := symbol p;
 	variables := flatten for Lk in MF.kList list for s in subsets(toList(1 .. MF.n), Lk) list p_(if #s == 1 then s_0 else toSequence s);
-	monomialOrder = (
-	    bigVals := flatten (
-		currentIndex := 0;
-		for grMF in MF.grMatchingFieldList list (
-		    numberEntries := binomial(grMF.n, grMF.k);
-		    currentIndex = currentIndex + numberEntries;
-		    toList(numberEntries : max ((getWeightPluecker MF)_{currentIndex - numberEntries .. currentIndex - 1}))
-		    )
+	if opts.MonomialOrder == "default" then (
+	    monomialOrder = (
+	    	bigVals := flatten (
+		    currentIndex := 0;
+		    for grMF in MF.grMatchingFieldList list (
+		    	numberEntries := binomial(grMF.n, grMF.k);
+		    	currentIndex = currentIndex + numberEntries;
+		    	toList(numberEntries : max ((getWeightPluecker MF)_{currentIndex - numberEntries .. currentIndex - 1}))
+		    	)
+	    	    );
+	    	{Weights => (bigVals - (getWeightPluecker MF))} 
 	    	);
-	    {Weights => (bigVals - (getWeightPluecker MF))} 
+	    ) else if opts.MonomialOrder == "none" then (
+	    monomialOrder = GRevLex;
+	    ) else (
+	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
 	    );
 	MF.cache.ringP = QQ[variables, MonomialOrder => monomialOrder];
 	);
     if not MF.cache.?ringX then (
 	x := symbol x;
-	monomialOrder = (
-	    weights := for wRow in entries getWeightMatrix MF list (
-		bigVal := toList(MF.n : (max wRow));
-		bigVal - wRow
-		); 
-	    {Weights => flatten weights} 
+	if opts.MonomialOrder == "default" then (
+	    monomialOrder = (
+	    	weights := for wRow in entries getWeightMatrix MF list (
+		    bigVal := toList(MF.n : (max wRow));
+		    bigVal - wRow
+		    ); 
+	    	{Weights => flatten weights} 
+	    	);
+	    ) else if opts.MonomialOrder == "non" then (
+	    monomialOrder = GRevLex;
+	    ) else (
+	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
 	    );
 	MF.cache.ringX = QQ[x_(1,1) .. x_(max MF.kList, MF.n), MonomialOrder => monomialOrder];
 	);
@@ -494,9 +525,13 @@ tupleSign(List) := I -> (
     )
 
 -- matching field ring map: P_I -> x_(1,I_1) * x_(2, I_2) ... x_(k, I_k), for each tuple I
-matchingFieldRingMap = method()
-matchingFieldRingMap(GrMatchingField) := MF -> (
-    setupMatchingFieldRings MF;
+matchingFieldRingMap = method(
+    Options => {
+	MonomialOrder => "default" -- monomial order for the ambient rings (default or none)
+	}
+    )
+matchingFieldRingMap(GrMatchingField) := opts -> MF -> (
+    setupMatchingFieldRings(opts, MF);
     if not MF.cache.?mfRingMap then (
     	R := MF.cache.ringP;
     	S := MF.cache.ringX;
@@ -507,8 +542,8 @@ matchingFieldRingMap(GrMatchingField) := MF -> (
     MF.cache.mfRingMap
     )
 
-matchingFieldRingMap(FlMatchingField) := MF -> (
-    setupMatchingFieldRings MF;
+matchingFieldRingMap(FlMatchingField) := opts -> MF -> (
+    setupMatchingFieldRings(opts, MF);
     if not MF.cache.?mfRingMap then (
     	R := MF.cache.ringP;
     	S := MF.cache.ringX;
@@ -525,17 +560,18 @@ matchingFieldRingMap(FlMatchingField) := MF -> (
 -- compute using M2 or FourTiTwo methods
 matchingFieldIdeal = method(
     Options => {
-	Strategy => "4ti2" -- "FourTiTwo" or "M2"
+	Strategy => "4ti2", -- "FourTiTwo" or "M2"
+	MonomialOrder => "default" -- monomial order for ambient rings (default or none)
 	}
     )
 matchingFieldIdeal(GrMatchingField) := opts -> MF -> (
     -- setting up MF rings is done by grMatchingFieldRingMap if necessary
     if not MF.cache.?mfIdeal then (
 	if opts.Strategy == "M2" then (
-	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF);
+	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF, MonomialOrder => opts.MonomialOrder);
     	    )
 	else if opts.Strategy == "4ti2" then (
-	    setupMatchingFieldRings MF;
+	    setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
 	    V := matchingFieldPolytopePoints MF;
 	    gensMatrix := gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPluecker MF);
 	    -- adjust the signs of the variables
@@ -558,10 +594,10 @@ matchingFieldIdeal(FlMatchingField) := opts -> MF -> (
     -- setting up MF rings is done by grMatchingFieldRingMap if necessary
     if not MF.cache.?mfIdeal then (
     	if opts.Strategy == "M2" then (
-	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF);
+	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF, MonomialOrder => opts.MonomialOrder);
     	    )
 	else if opts.Strategy == "4ti2" then (
-	    setupMatchingFieldRings MF;
+	    setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
 	    VList := for grMF in MF.grMatchingFieldList list (
 		matchingFieldPolytopePoints(grMF, ExtraZeroRows => (max MF.kList - grMF.k))
 		);
@@ -592,24 +628,30 @@ matchingFieldIdeal(FlMatchingField) := opts -> MF -> (
 
 -- Grassmannian ideal using the constructed pluecker variable ring
 -- Sets the weight of the polynomial ring to be the MF pluecker weight
+-- 
+-- the matching field must be coherent for this shortcut to work 
 Grassmannian(GrMatchingField) := opts -> MF -> (
+    plueckerIdeal MF
+    )
+
+
+plueckerIdeal = method(
+    Options => {
+	MonomialOrder => "default" -- default or none; see setupMatchingFieldRings(.., MonomialOrder => [option])
+	}
+    )
+plueckerIdeal(GrMatchingField) := opts -> MF -> (
     if not MF.cache.?mfPlueckerIdeal then (
-    	setupMatchingFieldRings(MF);
+    	setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
     	R := MF.cache.ringP;
     	MF.cache.mfPlueckerIdeal = Grassmannian(MF.k - 1, MF.n - 1, R);
 	);
     MF.cache.mfPlueckerIdeal
     )
 
-
-plueckerIdeal = method()
-plueckerIdeal(GrMatchingField) := MF -> (
-    Grassmannian(MF)
-    )
-
-plueckerIdeal(FlMatchingField) := MF -> (
+plueckerIdeal(FlMatchingField) := opts -> MF -> (
     if not MF.cache.?mfPlueckerIdeal then (
-    	setupMatchingFieldRings(MF);
+    	setupMatchingFieldRings(opts, MF);
     	local i;
 	local variableFromSubset;
 	local generatorList;
@@ -683,9 +725,13 @@ plueckerIdeal(FlMatchingField) := MF -> (
 -- Pluecker map is the determinantal map associated to Grassmannian / Flag variety
 -- its kernel coincides with the pluecker ideal defined above 
 
-plueckerMap = method()
-plueckerMap(GrMatchingField) := MF -> (
-    setupMatchingFieldRings(MF);
+plueckerMap = method(
+    Options => {
+	MonomialOrder => "default" -- default or none; see setupMatchingFieldRings(.., MonomialOrder => [option])
+	}
+    )
+plueckerMap(GrMatchingField) := opts -> MF -> (
+    setupMatchingFieldRings(opts, MF);
     if not MF.cache.?plueckerRingMap then (
 	R := MF.cache.ringP;
 	S := MF.cache.ringX;
@@ -695,8 +741,8 @@ plueckerMap(GrMatchingField) := MF -> (
     MF.cache.plueckerRingMap
     )
 
-plueckerMap(FlMatchingField) := MF -> (
-    setupMatchingFieldRings(MF);
+plueckerMap(FlMatchingField) := opts -> MF -> (
+    setupMatchingFieldRings(opts, MF);
     if not MF.cache.?plueckerRingMap then (
 	R := MF.cache.ringP;
 	S := MF.cache.ringX;
@@ -868,22 +914,29 @@ isToricDegeneration(FlMatchingField) := MF -> (
 
 
 -------------------------------
--- subring of a matching field
--- overloaded method (subring is originally a method from the package SubalgebraBases)
+-- plueckerAlgebra of a matching field
+-- previously this overloaded the method subring from the package SubalgebraBases
 -- the pluecker algebra inside inside a ring with term order
 -- given by the weightMatrix
-subring(GrMatchingField) := opts -> MF -> (
+-- 
+-- MonomialOrder is the monomial order of the ambient rings; see setupMatchingFieldRings(.., MonomialOrder => [option])
+plueckerAlgebra = method(
+    Options => {
+	MonomialOrder => "default" -- default or none
+	}
+    )
+plueckerAlgebra(GrMatchingField) := opts -> MF -> (
     if not MF.cache.?mfSubring then (
-    	setupMatchingFieldRings(MF);
+    	setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
     	matX := MF.cache.X;
     	MF.cache.mfSubring = subring for s in subsets(MF.n, MF.k) list det(matX_s);
 	);
     MF.cache.mfSubring
     )
 
-subring(FlMatchingField) := opts -> MF -> (
+plueckerAlgebra(FlMatchingField) := opts -> MF -> (
     if not MF.cache.?mfSubring then (
-    	setupMatchingFieldRings(MF);
+    	setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
     	matX := MF.cache.X;
     	MF.cache.mfSubring = subring flatten for grMF in MF.grMatchingFieldList list (
 	    for s in subsets(grMF.n, grMF.k) list det(matX_s^(toList(0 .. grMF.k - 1)))
@@ -897,7 +950,7 @@ subring(FlMatchingField) := opts -> MF -> (
 -- Newton-Okounkov body for a matching field
 -- 
 NOBody = method()
--- TODO: check if it's okay to always set 
+-- Note: it is okay to always set 
 -- sagbi( .. AutoSubduce => false .. )
 --
 
@@ -907,7 +960,7 @@ NOBody = method()
 NOBody(GrMatchingField) := MF -> (
     if not MF.cache.?mfNOBody then ( 
     	-- compute the initial algbera of the Pluecker algebra wrt the weight term order
-    	initialAlgberaGens := first entries leadTerm subalgebraBasis(subring MF, AutoSubduce => false); 
+    	initialAlgberaGens := first entries leadTerm subalgebraBasis(plueckerAlgebra MF, AutoSubduce => false); 
     	generatorExponents := apply(initialAlgberaGens, f -> (exponents(f))_0);
     	NOBodyVertices := apply(generatorExponents, v -> ((MF.k) / sum(v))*v); -- normalize the vertices
     	MF.cache.mfNOBody = convexHull transpose matrix NOBodyVertices;
@@ -923,7 +976,7 @@ NOBody(GrMatchingField) := MF -> (
 NOBody(FlMatchingField) := MF -> (
     if not MF.cache.?mfNOBody then (
 	kmax := max MF.kList;
-	initialAlgebraGens := first entries leadTerm subalgebraBasis subring MF;
+	initialAlgebraGens := first entries leadTerm subalgebraBasis(plueckerAlgebra MF, AutoSubduce => false);
 	generatorExponents := matrix apply(initialAlgebraGens, f -> (exponents(f))_0);
 	gradingMap := matrix for gradingRow from 0 to #MF.kList -1 list(
 	    flatten for kIndex from 0 to kmax-1 list (
@@ -993,8 +1046,6 @@ matroidSubdivision(GrMatchingField) := MF -> (
 ----------------------
 -- weightMatrixCone
 -- the cone whose interior points are weight matrices that induce the given matching field
---
--- TODO: check how to go between weightMatrixCone and the Tropicalisation
 weightMatrixCone = method(
     Options => {
 	ExtraZeroRows => 0 -- adds this many rows of 0 to each inequality, used for FlMatchingField cone
@@ -1168,9 +1219,9 @@ algebraicMatroidCircuits(GrMatchingField) := MF -> (
 -- The notes in the code follow notation of Smith-Loho
 -- A matching field is a tope field of type {1 .. 1}
 -- the type is the 'right degree vector'
--- for tuple (i_1,1 .. i_1,t_1 .. i_s,t_s) of the GrMatchingField, 
+-- for each tuple (i_1,1 .. i_1,t_1 .. i_s,t_s) of the GrMatchingField, 
 -- we get one bipartite graph of the tope field where 1 in R is 
--- adjacent to i_1,1 .. i_1,t_1 
+-- adjacent to i_1,1 .. i_1,t_1, etc.  
 TopeField = new Type of HashTable
 
 topeField = method()
@@ -1368,7 +1419,7 @@ doc ///
 	  matchingFieldIdeal
 	  plueckerMap
 	  matchingFieldRingMap
-	  (subring, FlMatchingField)
+	  plueckerAlgebra
 	  
 	:Convex bodies and polyhedra
 	  matchingFieldPolytope
@@ -1397,6 +1448,7 @@ doc ///
 	(plueckerIdeal, FlMatchingField)
 	(plueckerIdeal, GrMatchingField)
 	(Grassmannian, GrMatchingField)
+	[plueckerIdeal, MonomialOrder]
       Headline
         The Pluecker ideal of a matching field
       Usage
@@ -1406,6 +1458,8 @@ doc ///
       Inputs
         Lgr: GrMatchingField
 	Lfl: FlMatchingField
+	MonomialOrder => String 
+	  either "default" or "none" (supply "none" only if $L$ is not coherent) 
       Outputs
         I: Ideal
 	  The Pluecker ideal associated to the corresponding Grassmannian or partial flag variety
@@ -1659,6 +1713,7 @@ doc ///
 	(matchingFieldIdeal, FlMatchingField)
 	(matchingFieldIdeal, GrMatchingField)
 	[matchingFieldIdeal, Strategy]
+	[matchingFieldIdeal, MonomialOrder]
       Headline
         The toric ideal of a matching field
       Usage
@@ -1667,6 +1722,8 @@ doc ///
         L: {GrMatchingField, FlMatchingField}
 	Strategy => String
 	  either "M2" or "4ti2" the strategy for computing the generators
+	MonomialOrder => String 
+	  either "default" or "none" (supply "none" only if $L$ is not coherent)
       Outputs
         I: Ideal
 	  toric ideal of the matching field
@@ -1796,12 +1853,15 @@ doc ///
          plueckerMap
 	(plueckerMap, FlMatchingField)
 	(plueckerMap, GrMatchingField)
+	[plueckerMap, MonomialOrder]
       Headline
         The ring map of the Pluecker embedding
       Usage
         m = plueckerMap L
       Inputs
         L: {GrMatchingField, FlMatchingField}
+	MonomialOrder => String 
+	  either "default" or "none" (supply "none" only if $L$ is not coherent)
       Outputs
         m: RingMap
 	  the ring map of the Pluecker embedding
@@ -2328,7 +2388,7 @@ doc ///
         Text
 	  The Pluecker algebra is generated by Pluecker forms given by top-justified
 	  minors of a generic matrix. The Pluecker algebra can be constructed with
-	  the function @TO "subring"@, of the image of the Pluecker ring map that can be
+	  the function @TO "plueckerAlgebra"@, of the image of the Pluecker ring map that can be
 	  accessed with the function @TO "plueckerMap"@. Note that the ambient ring
 	  containing the Pluecker algebra has a weight-based term order that comes from
 	  the matching field. We compute a subalgebra basis (SAGBI basis) using the
@@ -2371,7 +2431,7 @@ doc ///
         matchingFieldFromPermutation
 	isToricDegeneration
 	SubalgebraBases
-	subring
+        plueckerAlgebra
 	plueckerMap
       Subnodes
 ///
@@ -2540,12 +2600,15 @@ doc ///
          matchingFieldRingMap
         (matchingFieldRingMap, FlMatchingField)
         (matchingFieldRingMap, GrMatchingField)
+	[matchingFieldRingMap, MonomialOrder]
       Headline
         monomial map of the matching field
       Usage
         m = matchingFieldRingMap L
       Inputs
         L: {GrMatchingField, FlMatchingField}
+	MonomialOrder => String
+	  either "default" or "none" (supply "none" only when $L$ is not coherent)
       Outputs
         m: RingMap
 	  monomial ring map whose kernel is the matching field ideal
@@ -2882,14 +2945,18 @@ doc ///
 
 doc ///
       Key
-        (subring, GrMatchingField)
-	(subring, FlMatchingField)
+        plueckerAlgebra
+        (plueckerAlgebra, GrMatchingField)
+	(plueckerAlgebra, FlMatchingField)
+	[plueckerAlgebra, MonomialOrder]
       Headline
         Pluecker algebra of a (partial) flag variety
       Usage
-        S = subring L
+        S = plueckerAlgebra L
       Inputs
         L: {GrMatchingField, FlMatchingField}
+	MonomialOrder => String 
+	  either "default" or "none" (supply "none" only if $L$ is not coherent)
       Outputs
         S: Subring
 	  generated by minors of a generic matrix of variables
@@ -2903,7 +2970,7 @@ doc ///
 	  A matching field specifies a weight order on the ambient ring containing the Pluecker algebra.
 	Example
 	  L = diagonalMatchingField(2, 4)
-	  S = subring L
+	  S = plueckerAlgebra L
 	  transpose gens S
       SeeAlso
         GrMatchingField
@@ -3128,13 +3195,13 @@ assert(getTuples L == getTuples L');
 
 TEST ///
 L = diagonalMatchingField(2, 4);
-S = subring L;
+S = plueckerAlgebra L;
 assert(isSAGBI S);
 ///
 
 TEST ///
 L = matchingFieldFromPermutation(2, 4, {2,3,1,4});
-S = subring L;
+S = plueckerAlgebra L;
 assert(isSAGBI S);
 ///
 
