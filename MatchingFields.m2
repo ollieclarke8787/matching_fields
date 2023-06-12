@@ -3,13 +3,13 @@
 
 newPackage(
     "MatchingFields",
-    Version => "1.0",
+    Version => "1.1",
     Date => "May 27, 2022",
     Authors => {
 	{Name => "Oliver Clarke", Email => "oliver.clarke@ed.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
 	},
     Headline => "Matching Fields in Macaulay2",
-    Keywords => {"Grassmannian", "Flag Variety", "Polytopes", "Toric Degeneration", "SAGBI Basis"},
+    Keywords => {"Grassmannians", "Flag Varieties", "Polytopes", "Toric Degenerations", "SAGBI Basis"},
     DebuggingMode => false,
     PackageExports => {"Polyhedra", "SubalgebraBases", "Matroids", "FourTiTwo", "Graphs"}
     )  
@@ -108,6 +108,7 @@ protect symbol X -- matrix of ringX variables
 protect symbol mfRingMap
 protect symbol plueckerRingMap
 protect symbol mfIdeal
+protect symbol projMFIdeal
 protect symbol mfPlueckerIdeal
 protect symbol mfSubring
 
@@ -325,7 +326,7 @@ FlMatchingField == FlMatchingField := (MF1, MF2) -> (
 -- so we use our own function since we know that all supplied points are vertices
 --
 -- This function is for internal use only (unexported)
--- It is only required for the Grassmannian matching fields
+-- It is only required for Grassmannian matching fields
 -- We make use of this matrix in 'matchingFieldIdeal'
 matchingFieldPolytopePoints = method(
     Options => {
@@ -338,7 +339,7 @@ matchingFieldPolytopePoints(GrMatchingField) := opts -> MF -> (
 	MF.cache.mfPolytopePoints
 	) else (
 	-- construct a matching field polytope P_L from 
-	--   L a matching field for Gr(k, n) Grassmannian 
+	-- L a matching field for Gr(k, n) Grassmannian 
     	points := {};
     	for I in MF.tuples do (
 	    -- construct the point corresponding to I 
@@ -571,9 +572,16 @@ matchingFieldIdeal(GrMatchingField) := opts -> MF -> (
 	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF, MonomialOrder => opts.MonomialOrder);
     	    )
 	else if opts.Strategy == "4ti2" then (
+	    local gensMatrix;
 	    setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
 	    V := matchingFieldPolytopePoints MF;
-	    gensMatrix := gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPluecker MF);
+	    if opts.MonomialOrder == "default" then (
+	    	gensMatrix = gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPluecker MF);
+		) else if opts.MonomialOrder == "none" then (
+	    	gensMatrix = gens toricGroebner(V, MF.cache.ringP);
+		) else (
+		error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
+		);
 	    -- adjust the signs of the variables
 	    signChange := map(MF.cache.ringP, MF.cache.ringP, matrix {
 		    for i from 0 to #MF.tuples - 1 list (tupleSign (MF.tuples)_i)*(MF.cache.ringP)_i
@@ -597,12 +605,19 @@ matchingFieldIdeal(FlMatchingField) := opts -> MF -> (
 	    MF.cache.mfIdeal = kernel matchingFieldRingMap(MF, MonomialOrder => opts.MonomialOrder);
     	    )
 	else if opts.Strategy == "4ti2" then (
+	    local gensMatrix;
 	    setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
 	    VList := for grMF in MF.grMatchingFieldList list (
 		matchingFieldPolytopePoints(grMF, ExtraZeroRows => (max MF.kList - grMF.k))
 		);
 	    V := fold(VList, (V1, V2) -> V1 | V2);
-	    gensMatrix := gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPluecker MF);
+	    if opts.MonomialOrder == "default" then (
+	    	gensMatrix = gens toricGroebner(V, MF.cache.ringP, Weights => getWeightPluecker MF);
+		) else if opts.MonomialOrder == "none" then (
+	    	gensMatrix = gens toricGroebner(V, MF.cache.ringP);
+		) else (
+		error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
+		);
 	    -- adjust the signs of the variables
 	    signChange := map(MF.cache.ringP, MF.cache.ringP, matrix {
 		    variableIndex := -1;
@@ -623,6 +638,63 @@ matchingFieldIdeal(FlMatchingField) := opts -> MF -> (
 	    );
     	);
     MF.cache.mfIdeal
+    )
+
+---------------------------------------------------
+-- projective matching field ideal (unexported)
+-- this is the ideal obtained by composing the 
+-- matching field rings map and the segre embedding
+-- 
+-- Note: the signs are not correct
+-- 4ti2 Strategy only
+-- assumes that the weight matrices of the grMatchingFields
+--   are sub weight matrices of the flMatchingField
+
+projectiveMatchingFieldIdeal = method(
+    Options => {
+	Strategy => "4ti2", -- "FourTiTwo"
+	MonomialOrder => "default" -- monomial order for ambient rings (default or none)
+	}
+    )
+
+projectiveMatchingFieldIdeal(GrMatchingField) := opts -> MF -> (
+    matchingFieldIdeal(opts, MF)
+    )
+
+projectiveMatchingFieldIdeal(FlMatchingField) := opts -> MF -> (
+    if not MF.cache.?projMFIdeal then (
+	local monomialOrder;
+        if opts.MonomialOrder == "none" then (
+	    monomialOrder = GRevLex;
+	    ) else if opts.MonomialOrder == "default" then (
+	    plueckerWeights := for grMF in MF.grMatchingFieldList list (
+		plueckerWeight := getWeightPluecker grMF;
+		maxWeight := max plueckerWeight;
+		for weight in plueckerWeight list maxWeight - weight
+		);
+	    monomialOrder = (Weights => fold(plueckerWeights, (W1, W2) -> flatten for w1 in W1 list for w2 in W2 list w1+w2));
+	    ) else (
+	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
+	    );
+	p := symbol p;
+	subsetList := for k in MF.kList list subsets(1 .. MF.n, k);
+	variableIndices := fold(subsetList, (S1, S2) -> flatten for s1 in S1 list for s2 in S2 list s1 | s2);  
+	R := QQ[for variableIndex in variableIndices list p_(toSequence variableIndex), MonomialOrder => monomialOrder];
+	if opts.Strategy == "4ti2" then (
+	    VList := for grMF in MF.grMatchingFieldList list (
+		pointsMatrix := matchingFieldPolytopePoints(grMF, ExtraZeroRows => (max MF.kList - grMF.k));
+		for columnIndex from 0 to numColumns pointsMatrix -1 list pointsMatrix_{columnIndex}
+		);
+	    VCols := fold(VList, (V1, V2) -> flatten for v1 in V1 list for v2 in V2 list v1+v2);
+    	    V := fold(VCols, (col1, col2) -> col1 | col2);
+	    gensMatrix := gens toricGroebner(V, R);
+	    MF.cache.projMFIdeal = ideal gensMatrix;
+	    forceGB gens MF.cache.projMFIdeal;
+	    ) else (
+	    error("Unknown option: Strategy => " | toString opts.Strategy);
+	    );
+	);
+    MF.cache.projMFIdeal
     )
 
 
@@ -667,11 +739,7 @@ plueckerIdeal(FlMatchingField) := opts -> MF -> (
 	    );
 	--------------------------------
     	-- Grassmannian relations
-	-- For example, see the Wiki-page on the Pluecker Embedding
-	--
-	-- TODO: remove the redundant generators
-	-- E.g. for Gr(2,4) we get 4 copies of the same generator
-	--
+	-- 
     	generatorList = flatten for grMF in MF.grMatchingFieldList list (
 	    if grMF.k >= 2 and grMF.n - grMF.k >= 2 then (
 	    	flatten for I in subsets(1 .. grMF.n, grMF.k - 1) list (
@@ -757,7 +825,7 @@ plueckerMap(FlMatchingField) := opts -> MF -> (
 
 ----------------------------------
 -- matching field from permutation
--- Fix a permutation S, take a 'highly generic' weight matrix M
+-- Fix a permutation S, a 'generic' weight matrix M
 -- that induces the diagonal matching field 
 -- Permute the 2nd row of M using S
 -- See the paper: Clarke-Mohammadi-Zaffalon 2022
@@ -898,20 +966,61 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 -- we already have that leadTerm(pluecker ideal) is a subset of matching field ideal
 -- so it suffices to reduce the generators of the matching field ideal modulo the
 -- leadTerm of the pluecker ideal
+--
+-- The algorithm (roughly 25% faster than old version):
+-- 1) get matching field (toric) ideal and record largest degree generator d 
+-- 2) get partial GB of plueckerIdeal up to DegreeLimit d
+--    If partial GB is actually a complete GB then go to (8)
+-- 3) take the lead terms of the partial GB and forceGB
+-- 4) reduce matching field ideal generators modulo the forced GB
+-- 5) remove any generators that are reduced to zero
+-- 6) if matching field generator list is zero then we have a toric degeneration so return true
+-- 7) if not then d = d+1 and go back to step 2 
+-- 8) reduce the matching field ideal gens modulo the full GB and check if the result is zero
 
 isToricDegeneration = method ()
 isToricDegeneration(GrMatchingField) := MF -> (
-    inPluecker := forceGB leadTerm(1, Grassmannian(MF));
-    zero(gens matchingFieldIdeal MF % inPluecker) 
-    --(matchingFieldIdeal(MF) == ideal leadTerm(1, plueckerIdeal MF)) 
+    -- Old version: (the new version is a faster version of the following)
+    -- inPluecker := forceGB leadTerm(1, Grassmannian(MF));
+    -- zero(gens matchingFieldIdeal MF % inPluecker) 
+    local inPluecker;
+    matchingFieldIdealGens := gens matchingFieldIdeal MF;
+    maxDegree := max flatten flatten degrees matchingFieldIdealGens;
+    plueckerGB := gb(plueckerIdeal MF, Algorithm => Homogeneous, DegreeLimit => maxDegree);
+    statusParts := separate(" ", status plueckerGB);
+    currentDegree := value last statusParts;
+    while (separate(" ", status plueckerGB))_1 == "DegreeLimit;" do (
+	inPluecker = forceGB leadTerm(1, gens plueckerGB);
+        matchingFieldIdealGens = compress (matchingFieldIdealGens % inPluecker);
+	if zero matchingFieldIdealGens then return true; 
+	currentDegree = currentDegree + 1;
+	gb(plueckerIdeal MF, DegreeLimit => currentDegree); -- expensive part of the computation, automatically updates plueckerGB
+	);
+    -- we take the full GB - presumably it's already computed and the following is a fast check
+    -- if it's not computed then we compute it now
+    inPluecker = forceGB leadTerm(1, gens gb plueckerIdeal MF);
+    zero(matchingFieldIdealGens % inPluecker)
     )
 
 isToricDegeneration(FlMatchingField) := MF -> (
-    inPluecker := forceGB leadTerm(1, plueckerIdeal MF);
-    zero(gens matchingFieldIdeal MF % inPluecker) 
-    --(matchingFieldIdeal(MF) == ideal leadTerm(1, plueckerIdeal MF))
+    -- inPluecker := forceGB leadTerm(1, plueckerIdeal MF);
+    -- zero(gens matchingFieldIdeal MF % inPluecker) 
+    local inPluecker;
+    matchingFieldIdealGens := gens matchingFieldIdeal MF;
+    maxDegree := max flatten flatten degrees matchingFieldIdealGens;
+    plueckerGB := gb(plueckerIdeal MF, Algorithm => Homogeneous, DegreeLimit => maxDegree);
+    statusParts := separate(" ", status plueckerGB);
+    currentDegree := value last statusParts;
+    while (separate(" ", status plueckerGB))_1 == "DegreeLimit;" do (
+	inPluecker = forceGB leadTerm(1, gens plueckerGB);
+        matchingFieldIdealGens = compress (matchingFieldIdealGens % inPluecker);
+	if zero matchingFieldIdealGens then return true; 
+	currentDegree = currentDegree + 1;
+	gb(plueckerIdeal MF, DegreeLimit => currentDegree);
+	);
+    inPluecker = forceGB leadTerm(1, gens gb plueckerIdeal MF);
+    zero(matchingFieldIdealGens % inPluecker)
     )
-
 
 -------------------------------
 -- plueckerAlgebra of a matching field
@@ -1009,7 +1118,12 @@ NOBody(FlMatchingField) := MF -> (
 -----------------------
 -- Regular Subdivision of a set of points
 -- code is copied and modified from "Polyhedra" Package 
--- not exported
+-- not exported 
+-- Why is code copied:
+-- >> See previous comment about the permutation of vertex names in Polyhedra package
+--    the same bug is present in the regular subdivision method
+-- >> Sent a message to the authors of Polyhedra package explaining the problem but no response yet  
+--
 pointRegularSubdivision = method()
 pointRegularSubdivision(Matrix, Matrix) := (points, weight) -> (
     -- Checking for input errors
@@ -1208,8 +1322,6 @@ algebraicMatroidCircuits(GrMatchingField) := MF -> (
     SS := subsets(toList(1 .. MF.n), MF.k);
     for B in circuits algebraicMatroid MF list (i -> SS_i) \ B
     )
-
-
 
 -- tope fields
 -- a tope field (for Gr(k,n)) is pair:
@@ -1497,8 +1609,14 @@ doc ///
         Example
 	  L = grMatchingField(2, 4, {{1,2}, {1,3}, {4,1}, {2,3}, {2,4}, {3,4}})
 	  isCoherent L
-	  -- I = plueckerIdeal L -- "error: expected a coherent matching field"      
+	  -- I = plueckerIdeal L -- "error: expected a coherent matching field"
+	Text
+	  To construct the pluecker ideal for a non-coherent matching field, set the option MonomialOrder to "none".
+	  The resulting ideal is constructed in a polynomial ring with the @TO "GRevLex"@ order.
+	Example
+	  I = plueckerIdeal(L, MonomialOrder => "none")       
       SeeAlso
+        matchingFieldIdeal
       Subnodes
 ///
 
@@ -1625,9 +1743,9 @@ doc ///
       Headline
         Construct a matching field for a partial flag variety
       Usage
-        L = flagMatchingField(kList, weightMatrix)
-	L = flagMatchingField(kList, n, tuples)
-	L = flagMatchingField(weightMatrix)
+        L = flMatchingField(kList, weightMatrix)
+	L = flMatchingField(kList, n, tuples)
+	L = flMatchingField(weightMatrix)
       Inputs
         kList: List
 	  positive integers; the sizes of the tuples of the flag matching field
@@ -1760,6 +1878,14 @@ doc ///
 	  target plueckerMap L
 	  target plueckerMap L === target matchingFieldRingMap L
 	Text
+	  If the matching field is not coherent, then the matching field ideal can be constructed by setting the option MonomialOrder to "none".
+	  Doing this sets the monomial order of the target polynomial ring above to @TO "GRevLex"@.
+	Example
+	  L = grMatchingField(2, 5, {{2,1}, {3,2}, {4,3}, {1,4}, {2,4}, {1,3}, {1,5}, {5,2}, {3,5}, {4,5}})
+	  isCoherent L
+	  I = matchingFieldIdeal(L, MonomialOrder => "none")
+	  (options ring I).MonomialOrder
+	Text 	  
 	  The option @TO "Strategy"@ determines how the matching field ideal is computed. The default uses the package @TO "FourTiTwo"@. This strategy works
 	  by passing in the matrix of the toric ideal to @TO "toricGroebner"@ with the correct weight vector. In the case of Grassmannian matching fields,
 	  the columns of the matrix of the toric ideal are exactly the vertices of the matching field polytope. For a flag matching field $\Lambda$, 
@@ -2781,8 +2907,8 @@ doc ///
       Headline
         Construct a matching field for the Grassmannian variety
       Usage
-	L = flagMatchingField(weightMatrix)
-	L = flagMatchingField(k, n, tuples)
+	L = grMatchingField(weightMatrix)
+	L = grMatchingField(k, n, tuples)
       Inputs
         k: ZZ
 	  positive integer; the size of the tuples of the matching field
@@ -3165,6 +3291,7 @@ doc ///
 -- # Tests #
 -- #########
 
+-- MF from weight matrix: tuples, pluecker weight, toric degen
 TEST ///
 L = grMatchingField matrix {
     {0,0,0,0}, 
@@ -3175,11 +3302,13 @@ assert(getWeightPluecker L == {1, 1, 2, 1, 3, 2});
 assert(isToricDegeneration L);
 ///
 
+-- non coherent from tuples
 TEST ///
 L = grMatchingField(2, 3, {{1,2}, {2,3}, {3,1}});
 assert(isCoherent L == false);
 ///
 
+-- diagonal MF: weight matrix cone
 TEST ///
 L = diagonalMatchingField(2, 6);
 assert(dim weightMatrixCone L == 12);
@@ -3187,24 +3316,29 @@ assert(numColumns rays weightMatrixCone L == 5);
 assert(numColumns linealitySpace weightMatrixCone L == 7);
 ///
 
+-- MF from permutations: equality
 TEST ///
 L = matchingFieldFromPermutation(2, 4, {2,1,4,3});
 L' = matchingFieldFromPermutation(2, 4, {3,2,10,5});
 assert(getTuples L == getTuples L');
+assert(L == L')
 ///
 
+-- pluecker algebra: isSAGBI
 TEST ///
 L = diagonalMatchingField(2, 4);
 S = plueckerAlgebra L;
 assert(isSAGBI S);
 ///
 
+-- non diag pluekcer algebra 
 TEST ///
 L = matchingFieldFromPermutation(2, 4, {2,3,1,4});
 S = plueckerAlgebra L;
 assert(isSAGBI S);
 ///
 
+-- algebraic matroid
 TEST ///
 L = diagonalMatchingField(2, 4);
 S = set {{1, 3}, {1, 4}, {2, 3}, {2, 4}};
@@ -3212,6 +3346,7 @@ assert(isSubset((algebraicMatroidCircuits L)_0, S))
 assert(isSubset(S, (algebraicMatroidCircuits L)_0))
 ///
 
+-- tope field amalgamations
 TEST ///
 L = grMatchingField(3, 5, {{1,3,2}, {1,4,2}, {1,5,2}, {3,4,1}, {1,3,5}, {1,4,5}, {3,4,2}, {2,3,5}, {2,4,5}, {3,4,5}});
 T = topeField L;
@@ -3224,10 +3359,32 @@ assert(T23#"type" == {1,2,2});
 assert(getTuples T23 == {{1,3,4,2,5}});
 ///
 
+-- tope field linkage
 TEST ///
 L = grMatchingField(2, 3, {{1,2}, {3,1}, {2,3}});
 assert(not isCoherent L);
 assert(not isLinkage L);
+///
+
+-- matching field ideal for non-coherent
+TEST ///
+L = grMatchingField(2, 4, {{1,2}, {3,1}, {2,3}, {1,4}, {2,4}, {4,3}});
+assert(not isCoherent L);
+I = matchingFieldIdeal(L, MonomialOrder => "none");
+assert(zero I);
+///
+
+-- non-coherent matching field ideal equals diagonal matching field ideal
+TEST ///
+S = subsets(1 .. 5, 3);
+S = {{2,1,3}} | delete({1,2,3}, S);
+L = grMatchingField(3, 5, S);
+assert(not isCoherent L);
+I = matchingFieldIdeal(L, MonomialOrder => "none");
+D = diagonalMatchingField(3, 5);
+I' = matchingFieldIdeal D;
+m = map(ring I, ring I', vars ring I);
+assert(m I' == I);
 ///
 
 end --
