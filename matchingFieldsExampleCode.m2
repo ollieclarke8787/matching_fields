@@ -37,13 +37,13 @@ J = plueckerIdeal D
 ideal leadTerm(1, J) == I
 isToricDegeneration D
 
-S = subring D
+S = plueckerAlgebra D
 transpose gens S
 transpose subalgebraBasis S
 
 M = matrix {{0,0,0,0,0,0},{18,3,15,6,9,12},{35,28,21,14,7,0}};
 L = grMatchingField M;
-T = subring L;
+T = plueckerAlgebra L;
 numgens T
 numgens sagbi T
 
