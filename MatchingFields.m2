@@ -3,8 +3,8 @@
 
 newPackage(
     "MatchingFields",
-    Version => "1.1",
-    Date => "June 12, 2022",
+    Version => "1.2",
+    Date => "July 26, 2022",
     Authors => {
 	{Name => "Oliver Clarke", Email => "oliver.clarke@ed.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
 	},
@@ -104,7 +104,7 @@ protect symbol mfPolytopePoints
 
 protect symbol ringP -- Polynomial ring in variables P_I, I in subsets(n, k)
 protect symbol ringX -- Polynomial ring in variables x_(i,j), 1 <= i <= k, 1 <= j <= n
-protect symbol X -- matrix of ringX variables
+protect symbol X     -- matrix of ringX variables
 protect symbol mfRingMap
 protect symbol plueckerRingMap
 protect symbol mfIdeal
@@ -968,14 +968,14 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 -- leadTerm of the pluecker ideal
 --
 -- The algorithm of inhomogeneous ideals is sketched below:
--- 1) get matching field (toric) ideal and record largest degree generator d 
+-- 1) get matching field (toric) ideal and record largest degree generator d
 -- 2) get partial GB of plueckerIdeal up to DegreeLimit d
 --    If partial GB is actually a complete GB then go to (8)
 -- 3) take the lead terms of the partial GB and forceGB
 -- 4) reduce matching field ideal generators modulo the forced GB
 -- 5) remove any generators that are reduced to zero
 -- 6) if matching field generator list is zero then we have a toric degeneration so return true
--- 7) if not then d = d+1 and go back to step 2 
+-- 7) if not then d = d+1 and go back to step 2
 -- 8) reduce the matching field ideal gens modulo the full GB and check if the result is zero
 --
 -- In the homgeneous case, it suffices to compute a GB up to degree limit d (step 1)
@@ -983,70 +983,24 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 
 isToricDegeneration = method ()
 isToricDegeneration(GrMatchingField) := MF -> (
-    -- Old version: (the new version is a faster version of the following)
-    -- inPluecker := forceGB leadTerm(1, Grassmannian(MF));
-    -- zero(gens matchingFieldIdeal MF % inPluecker) 
     matchingFieldIdealGens := gens matchingFieldIdeal MF;
     maxDegree := max flatten flatten degrees matchingFieldIdealGens;
     plueckerGB := gb(plueckerIdeal MF, Algorithm => Homogeneous, DegreeLimit => maxDegree);
     inPluecker := forceGB leadTerm(1, gens plueckerGB);
     zero(matchingFieldIdealGens % inPluecker)
-        
-    -*
-    -- For the inhomogeneous case we use the following algorithm:
-    local inPluecker;
-    matchingFieldIdealGens := gens matchingFieldIdeal MF;
-    maxDegree := max flatten flatten degrees matchingFieldIdealGens;
-    plueckerGB := gb(plueckerIdeal MF, Algorithm => Homogeneous, DegreeLimit => maxDegree);
-    statusParts := separate(" ", status plueckerGB);
-    currentDegree := value last statusParts;
-    while (separate(" ", status plueckerGB))_1 == "DegreeLimit;" do (
-	print("currentDegree" | toString currentDegree);
-	inPluecker = forceGB leadTerm(1, gens plueckerGB);
-	matchingFieldIdealGens = compress (matchingFieldIdealGens % inPluecker);
-	if zero matchingFieldIdealGens then return true; 
-	currentDegree = currentDegree + 1;
-	gb(plueckerIdeal MF, DegreeLimit => currentDegree); -- expensive part of the computation, automatically updates plueckerGB
-	);
-    -- we take the full GB - presumably it's already computed and the following is a fast check
-    -- if it's not computed then we compute it now
-    inPluecker = forceGB leadTerm(1, gens gb plueckerIdeal MF);
-    zero(matchingFieldIdealGens % inPluecker)
-    *-
     )
 
 isToricDegeneration(FlMatchingField) := MF -> (
-    -- inPluecker := forceGB leadTerm(1, plueckerIdeal MF);
-    -- zero(gens matchingFieldIdeal MF % inPluecker) 
-    local inPluecker;
     matchingFieldIdealGens := gens matchingFieldIdeal MF;
     maxDegree := max flatten flatten degrees matchingFieldIdealGens;
     plueckerGB := gb(plueckerIdeal MF, Algorithm => Homogeneous, DegreeLimit => maxDegree);
-    inPluecker = forceGB leadTerm(1, gens plueckerGB);
+    inPluecker := forceGB leadTerm(1, gens plueckerGB);
     zero(matchingFieldIdealGens % inPluecker)
-    
-    -*
-    local inPluecker;
-    matchingFieldIdealGens := gens matchingFieldIdeal MF;
-    maxDegree := max flatten flatten degrees matchingFieldIdealGens;
-    plueckerGB := gb(plueckerIdeal MF, Algorithm => Homogeneous, DegreeLimit => maxDegree);
-    statusParts := separate(" ", status plueckerGB);
-    currentDegree := value last statusParts;
-    while (separate(" ", status plueckerGB))_1 == "DegreeLimit;" do (
-	inPluecker = forceGB leadTerm(1, gens plueckerGB);
-        matchingFieldIdealGens = compress (matchingFieldIdealGens % inPluecker);
-	if zero matchingFieldIdealGens then return true; 
-	currentDegree = currentDegree + 1;
-	gb(plueckerIdeal MF, DegreeLimit => currentDegree);
-	);
-    inPluecker = forceGB leadTerm(1, gens gb plueckerIdeal MF);
-    zero(matchingFieldIdealGens % inPluecker)
-    *-
     )
 
 -------------------------------
 -- plueckerAlgebra of a matching field
--- previously this overloaded the method subring from the package SubalgebraBases
+-- in older versions this method overloaded the method subring from the package SubalgebraBases
 -- the pluecker algebra inside inside a ring with term order
 -- given by the weightMatrix
 -- 
@@ -1086,8 +1040,8 @@ NOBody = method()
 --
 
 -- Grassmannian matching fields
--- the NO body has vertices that are directly read from the Sagbi basis
--- So, the lead terms can be simply scaled and the NO body is the convex hull
+-- the NO body has vertices that are directly read from the initial algebra (using Sagbi basis)
+-- So, the lead terms can be simply scaled and the NO body is the convex hull of exponent vectors
 NOBody(GrMatchingField) := MF -> (
     if not MF.cache.?mfNOBody then ( 
     	-- compute the initial algbera of the Pluecker algebra wrt the weight term order
