@@ -1,15 +1,15 @@
 
--- Matching Fields package for macaulay2 by Oliver Clarke
+-- Matching Fields package for Macaulay2 by Oliver Clarke
 
 newPackage(
     "MatchingFields",
     Version => "1.2",
-    Date => "July 26, 2022",
+    Date => "November 23, 2023",
     Authors => {
 	{Name => "Oliver Clarke", Email => "oliver.clarke@ed.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
 	},
-    Headline => "Matching Fields in Macaulay2",
-    Keywords => {"Grassmannians", "Flag Varieties", "Polytopes", "Toric Degenerations", "SAGBI Basis"},
+    Headline => "Toric degenerations of flag varieties via matching fields",
+    Keywords => {"Flag Varieties"},
     DebuggingMode => false,
     PackageExports => {"Polyhedra", "SubalgebraBases", "Matroids", "FourTiTwo", "Graphs"}
     )  
