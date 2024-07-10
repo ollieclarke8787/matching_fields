@@ -3,8 +3,8 @@
 
 newPackage(
     "MatchingFields",
-    Version => "1.2",
-    Date => "November 23, 2023",
+    Version => "1.3",
+    Date => "MONTH DAY, 2024",
     Authors => {
 	{Name => "Oliver Clarke", Email => "oliver.clarke@ed.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
 	},
@@ -62,16 +62,20 @@ export {
 -- # Main Code #
 -- #############
 
-
--- Matching Field Types
-GrMatchingField = new Type of HashTable;
--- Grassmannian Matching Fields MF have:
+-- Matching Field Base Type
+MatchingField = new Type of HashTable;
+-- Matching Fields MF have:
 -- MF.n
 -- MF.k
--- MF.tuples = List of k-subets of {1 .. n}  
+-- MF.tuples
 -- MF.cache
 
-FlMatchingField = new Type of HashTable;
+-- Matching Field Types
+GrMatchingField = new Type of MatchingField;
+-- Grassmannian Matching Fields MF have:
+-- MF.tuples = List of k-subets of {1 .. n}  
+
+FlMatchingField = new Type of MatchingField;
 -- Flag Matching Fields MF have:
 -- MF.kList
 -- MF.grMatchingFieldList
@@ -121,6 +125,22 @@ protect symbol computedAlgebraicMatroid
 
 ---------------------------------------------
 -- Matching Field constructor
+matchingField = method(
+    TypicalValue => MatchingField
+    )
+
+-- MF from weight matrix
+matchingField(Matrix) := M -> (
+
+    )
+
+-- MF from tuples
+matchingField(ZZ, ZZ, List) := (Lk, Ln, L) -> (
+
+    )
+
+---------------------------------------------
+-- Matching Field constructor
 grMatchingField = method(
     TypicalValue => GrMatchingField
     )
@@ -128,7 +148,7 @@ grMatchingField = method(
 -- MF from weight matrix
 grMatchingField(Matrix) := M -> (
     -- uses min convention   
-    -- returns matching f ield for weight matrix along with the weight for the Plucker variables
+    -- returns matching field for weight matrix along with the weight for the Plucker variables
     -- NB we assume the MF is well defined from the weight matrix
     --    i.e. the minimum was uniquely attained for each plucker form
     Mk := numRows M;
