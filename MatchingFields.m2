@@ -66,23 +66,21 @@ export {
 -- Matching Field Base Type
 MatchingField = new Type of HashTable;
 -- Matching Fields MF have:
--- MF.n
--- MF.kList
--- Mf.k (maximum in kList)
+-- MF.tupleMaxValue (formally n)
+-- MF.tupleSizeList (formally kList)
+-- MF.tupleMaxSize (formally k)
 -- MF.tuples
 -- MF.cache
 
 -- Matching Field Types
 GrMatchingField = new Type of MatchingField;
 -- Grassmannian Matching Fields MF have:
--- MF.kList : singleton {k}
--- MF.tuples : List of k-subets of {1 .. n}  
+-- MF.tupleSizeList : singleton {k}
+-- MF.tuples : List of k-subets of {1 .. n} in revlex order
 
 FlMatchingField = new Type of MatchingField;
 -- Flag Matching Fields MF have:
--- MF.kList
--- getGrMatchingFields MF
--- MF.cache
+-- MF.tuples : List of k-subsets in size order and in revlex order
 
 -- The cache table contains some of the following (or eventually computed):
 -- weightMatrix
@@ -93,15 +91,15 @@ FlMatchingField = new Type of MatchingField;
 -- matchingFieldRingMap
 -- ringP
 -- ringX
--- X
+-- XVarMatrix
 -- mfSubring
 -- mfNOBody
 -- mfPlueckerIdeal
 
 protect symbol tuples
-protect symbol n
-protect symbol k
-protect symbol kList
+protect symbol tupleMaxValue
+protect symbol tupleMaxSize
+protect symbol tupleSizeList
 protect symbol grMatchingFieldList
 
 protect symbol weightMatrix
@@ -109,9 +107,9 @@ protect symbol weightPluecker
 protect symbol mfPolytope
 protect symbol mfPolytopePoints
 
-protect symbol ringP -- Polynomial ring in variables P_I, I in subsets(n, k)
-protect symbol ringX -- Polynomial ring in variables x_(i,j), 1 <= i <= k, 1 <= j <= n
-protect symbol X     -- matrix of ringX variables
+protect symbol ringP      -- Polynomial ring in variables P_I, I in subsets(n, k)
+protect symbol ringX      -- Polynomial ring in variables x_(i,j), 1 <= i <= k, 1 <= j <= n
+protect symbol XVarMatrix -- matrix of ringX variables
 protect symbol mfRingMap
 protect symbol plueckerRingMap
 protect symbol mfIdeal
@@ -164,9 +162,9 @@ matchingField(Matrix, List, List) := (M, S, K) -> (
 	W = append(W, subsetWeight);
     );
     new MatchingField from {
-	n => Mn,
-	k => Mk,
-	kList => K, 
+	tupleMaxValue => Mn,
+	tupleMaxSize => Mk,
+        tupleSizeList => K, 
 	tuples => L, 
 	cache => new CacheTable from {
 	    weightMatrix => M,
@@ -186,9 +184,9 @@ matchingField(ZZ, List, List) := (Ln, L, K) -> (
     sortFunc := I -> {#I} | rsort I;
     LSorted := sort(L, sortFunc);
     new MatchingField from {
-	n => Ln,
-	kList => K,
-	k => max K,
+        tupleMaxValue => Ln,
+        tupleSizeList => K,
+	tupleMaxSize => max K,
 	tuples => LSorted, 
 	cache => new CacheTable from {}
 	}
@@ -256,13 +254,19 @@ flMatchingField(List, ZZ, List) := (LkList, Ln, L) -> (
 
 html GrMatchingField := 
 net GrMatchingField := MF -> (
-    "Grassmannian Matching Field for Gr(" | toString MF.kList_0 | ", " | toString MF.n | ")"  
+    "Grassmannian Matching Field for Gr(" | toString MF.tupleMaxSize | ", " | toString MF.tupleMaxValue | ")"  
     )
 
 html FlMatchingField := 
 net FlMatchingField := MF -> (
-    s := toString MF.kList;
-    "Flag Matching Field for Fl(" | s_(1, #s - 2) | "; " | toString MF.n | ")"
+    s := toString MF.tupleSizeList;
+    "Flag Matching Field for Fl(" | s_(1, #s - 2) | "; " | toString MF.tupleMaxValue | ")"
+    )
+
+html MatchingField :=
+net MatchingField := MF -> (
+    s := toString MF.tupleSizeList;
+    "Matching Field: tuple sizes " | s_(1, #s - 2) | "; with values 1 .. " | toString MF.tupleMaxValue 
     )
 
 -----------------------
@@ -307,14 +311,14 @@ getGrMatchingFields = method()
 getGrMatchingFields FlMatchingField := MF -> (
     if not MF.cache.?grMatchingFieldList then (
 	L := MF.tuples;
-	MF.cache.grMatchingFieldList = for Lk in MF.kList list grMatchingField(Lk, MF.n, select(L, I -> #I == Lk)); 
+	MF.cache.grMatchingFieldList = for Lk in MF.tupleSizeList list grMatchingField(Lk, MF.tupleMaxValue, select(L, I -> #I == Lk)); 
 	);
     MF.cache.grMatchingFieldList
     )
 
 -- Comparison operators: (note that tuples are always listed in revlex order)
 MatchingField == MatchingField := (MF1, MF2) -> (
-    MF1.n == MF2.n and
+    MF1.tupleMaxValue == MF2.tupleMaxValue and
     getTuples MF1 == getTuples MF2
     )
 
@@ -347,9 +351,9 @@ matchingFieldPolytopePoints GrMatchingField := opts -> MF -> (
 	    -- construct the point corresponding to I 
 	    point := ();
 	    for i in I do (
-	    	point = point | (i - 1 : 0) | (1 : (1)) | (MF.n - i : 0);
+	    	point = point | (i - 1 : 0) | (1 : (1)) | (MF.tupleMaxValue - i : 0);
 	    	);
-	    point = point | (MF.n * opts.ExtraZeroRows : 0);
+	    point = point | (MF.tupleMaxValue * opts.ExtraZeroRows : 0);
 	    point = toList point;
 	    points = append(points, point);
 	    ); 
@@ -389,7 +393,7 @@ matchingFieldPolytope(FlMatchingField) := opts -> MF -> (
 	MF.cache.mfPolytope
 	) else (
 	P := sum for grMF in getGrMatchingFields MF list matchingFieldPolytope(grMF, 
-	    ExtraZeroRows => (max MF.kList - grMF.k + opts.ExtraZeroRows)
+	    ExtraZeroRows => (MF.tupleMaxSize - grMF.tupleMaxSize + opts.ExtraZeroRows)
 	    );
 	if opts.ExtraZeroRows == 0 then MF.cache.mfPolytope = P;
 	P 
@@ -435,7 +439,7 @@ setupMatchingFieldRings = method(
 setupMatchingFieldRings MatchingField := opts -> MF -> (
     local monomialOrder;
     if not MF.cache.?ringP then (
-	p := symbol p;
+	p := getSymbol "p";
 	variables := for tuple in MF.tuples list p_(if #tuple == 1 then tuple_0 else toSequence sort tuple);
 	if opts.MonomialOrder == "default" then (
 	    monomialOrder = (
@@ -450,11 +454,11 @@ setupMatchingFieldRings MatchingField := opts -> MF -> (
 	MF.cache.ringP = QQ[variables, MonomialOrder => monomialOrder];
 	);
     if not MF.cache.?ringX then (
-	x := symbol x;
+	x := getSymbol "x";
 	if opts.MonomialOrder == "default" then (
 	    monomialOrder = (
 	    	weights := for wRow in entries getWeightMatrix MF list (
-		    bigVal := toList(MF.n : (max wRow));
+		    bigVal := toList(MF.tupleMaxValue : (max wRow));
 		    bigVal - wRow
 		    ); 
 	    	{Weights => flatten weights} 
@@ -464,10 +468,10 @@ setupMatchingFieldRings MatchingField := opts -> MF -> (
 	    ) else (
 	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
 	    );
-	MF.cache.ringX = QQ[x_(1,1) .. x_(MF.k, MF.n), MonomialOrder => monomialOrder];
+	MF.cache.ringX = QQ[x_(1,1) .. x_(MF.tupleMaxSize, MF.tupleMaxValue), MonomialOrder => monomialOrder];
 	);
     if not MF.cache.?X then (
-	MF.cache.X = transpose genericMatrix(MF.cache.ringX, MF.n, MF.k);
+	MF.cache.XVarMatrix = transpose genericMatrix(MF.cache.ringX, MF.tupleMaxValue, MF.tupleMaxSize);
 	);
     )
 
@@ -477,7 +481,7 @@ setupMatchingFieldRings MatchingField := opts -> MF -> (
 tupleSign = method()
 tupleSign(List) := I -> (
     if #I <= 1 then 1 else (
-    	(-1)^((sum for s in subsets(I, 2) list if s_0 > s_1 then 1 else 0) % 2)
+    	if even length select(subsets(I, 2), s -> s_0 > s_1) then 1 else -1
 	)
     )
 
@@ -494,7 +498,7 @@ matchingFieldRingMap MatchingField := opts -> MF -> (
     	R := MF.cache.ringP;
     	S := MF.cache.ringX;
         MF.cache.mfRingMap = map(S, R, 
-	    for tuple in MF.tuples list tupleSign(tuple) * (product for i from 0 to #tuple - 1 list (MF.cache.X)_(i, tuple_i - 1))
+	    for tuple in MF.tuples list tupleSign(tuple) * (product for i from 0 to #tuple - 1 list (MF.cache.XVarMatrix)_(i, tuple_i - 1))
 	    );
 	);
     MF.cache.mfRingMap
@@ -580,12 +584,12 @@ projectiveMatchingFieldIdeal(FlMatchingField) := opts -> MF -> (
 	    error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
 	    );
 	p := symbol p;
-	subsetList := for k in MF.kList list subsets(1 .. MF.n, k);
+	subsetList := for k in MF.tupleSizeList list subsets(1 .. MF.tupleMaxValue, k);
 	variableIndices := fold(subsetList, (S1, S2) -> flatten for s1 in S1 list for s2 in S2 list s1 | s2);  
 	R := QQ[for variableIndex in variableIndices list p_(toSequence variableIndex), MonomialOrder => monomialOrder];
 	if opts.Strategy == "4ti2" then (
 	    VList := for grMF in getGrMatchingFields MF list (
-		pointsMatrix := matchingFieldPolytopePoints(grMF, ExtraZeroRows => (max MF.kList - grMF.k));
+		pointsMatrix := matchingFieldPolytopePoints(grMF, ExtraZeroRows => (MF.tupleMaxSize - grMF.tupleMaxSize));
 		for columnIndex from 0 to numColumns pointsMatrix -1 list pointsMatrix_{columnIndex}
 		);
 	    VCols := fold(VList, (V1, V2) -> flatten for v1 in V1 list for v2 in V2 list v1+v2);
@@ -619,7 +623,7 @@ plueckerIdeal GrMatchingField := opts -> MF -> (
     if not MF.cache.?mfPlueckerIdeal then (
     	setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
     	R := MF.cache.ringP;
-    	MF.cache.mfPlueckerIdeal = Grassmannian(MF.k - 1, MF.n - 1, R);
+    	MF.cache.mfPlueckerIdeal = Grassmannian(MF.tupleMaxSize - 1, MF.tupleMaxValue - 1, R);
 	);
     MF.cache.mfPlueckerIdeal
     )
@@ -634,7 +638,7 @@ plueckerIdeal FlMatchingField := opts -> MF -> (
 	variableFromSubset = new HashTable from flatten (
 	    varsMatrix := vars MF.cache.ringP;
 	    for grMF in getGrMatchingFields MF list (
-	    	for s in subsets(toList(1 .. grMF.n), grMF.k) list (
+	    	for s in subsets(toList(1 .. grMF.tupleMaxValue), grMF.tupleMaxSize) list (
 		    i = i + 1;
 		    s => varsMatrix_(0, i-1)
 		    )
@@ -644,9 +648,9 @@ plueckerIdeal FlMatchingField := opts -> MF -> (
     	-- Grassmannian relations
 	-- 
     	generatorList = flatten for grMF in getGrMatchingFields MF list (
-	    if grMF.k >= 2 and grMF.n - grMF.k >= 2 then (
-	    	flatten for I in subsets(1 .. grMF.n, grMF.k - 1) list (
-		    for J in subsets(1 .. grMF.n, grMF.k + 1) list (
+	    if grMF.tupleMaxSize >= 2 and grMF.tupleMaxValue - grMF.tupleMaxSize >= 2 then (
+	    	flatten for I in subsets(1 .. grMF.tupleMaxValue, grMF.tupleMaxSize - 1) list (
+		    for J in subsets(1 .. grMF.tupleMaxValue, grMF.tupleMaxSize + 1) list (
 			newGenerator := sum for jPosition from 0 to #J - 1 list (
 			    j := J_jPosition;
 			    if not member(j, I) then (
@@ -671,8 +675,8 @@ plueckerIdeal FlMatchingField := opts -> MF -> (
 	generatorList = generatorList | flatten for grMFs in subsets(getGrMatchingFields MF, 2) list (
 	    grMF0 := grMFs_0;
 	    grMF1 := grMFs_1;
-	    flatten for I in subsets(1 .. grMF0.n, grMF0.k - 1) list (
-		for J in subsets(1 .. grMF1.n, grMF1.k + 1) list (
+	    flatten for I in subsets(1 .. grMF0.tupleMaxValue, grMF0.tupleMaxSize - 1) list (
+		for J in subsets(1 .. grMF1.tupleMaxValue, grMF1.tupleMaxSize + 1) list (
 		    sum for jPosition from 0 to #J - 1 list (
 			j := J_jPosition;
 			if not member(j, I) then (
@@ -706,7 +710,7 @@ plueckerMap MatchingField := opts -> MF -> (
     if not MF.cache.?plueckerRingMap then (
 	R := MF.cache.ringP;
 	S := MF.cache.ringX;
-	matX := MF.cache.X;
+	matX := MF.cache.XVarMatrix;
 	MF.cache.plueckerRingMap = map(S, R, for tuple in MF.tuples list det(matX_(apply(sort tuple, i -> i - 1))^(toList(0 .. #tuple - 1))));
 	);
     MF.cache.plueckerRingMap
@@ -768,9 +772,9 @@ matchingFieldFromPermutation(List, ZZ, List) := opts -> (LkList, Ln, S) -> (
     grMatchingFields := for Lk in sortedLkList list matchingFieldFromPermutation(Lk, Ln, S, opts);
     lastGrMatchingField := grMatchingFields_(#sortedLkList - 1);
     new FlMatchingField from {
-	n => Ln, 
-	kList => sortedLkList,
-	k => last sortedLkList,
+        tupleMaxValue => Ln, 
+        tupleSizeList => sortedLkList,
+	tupleMaxSize => last sortedLkList,
 	tuples => flatten for grMF in grMatchingFields list grMF.tuples;
 	cache => new CacheTable from {
 	    grMatchingFieldList => grMatchingFields, 
@@ -841,9 +845,9 @@ matchingFieldFromPermutationNoScaling(ZZ, ZZ, List) := opts -> (Lk, Ln, S) -> (
 	sum for i from 0 to Lk - 1 list M_(i, I_i - 1)
 	);
     new GrMatchingField from {
-	n => Ln, 
-	k => Lk,
-	kList => {Lk},
+        tupleMaxValue => Ln, 
+	tupleMaxSize => Lk,
+        tupleSizeList => {Lk},
 	tuples => L, 
 	cache => new CacheTable from {
 	    weightMatrix => M,
@@ -898,7 +902,7 @@ plueckerAlgebra = method(
 plueckerAlgebra MatchingField := opts -> MF -> (
     if not MF.cache.?mfSubring then (
     	setupMatchingFieldRings(MF, MonomialOrder => opts.MonomialOrder);
-    	matX := MF.cache.X;
+    	matX := MF.cache.XVarMatrix;
     	MF.cache.mfSubring = subring for tuple in MF.tuples list det(matX_(apply(sort tuple, i -> i - 1))^(toList(0 .. #tuple - 1)));
 	);
     MF.cache.mfSubring
@@ -921,7 +925,7 @@ NOBody GrMatchingField := MF -> (
     	-- compute the initial algbera of the Pluecker algebra wrt the weight term order
     	initialAlgberaGens := first entries leadTerm subalgebraBasis(plueckerAlgebra MF, AutoSubduce => false); 
     	generatorExponents := apply(initialAlgberaGens, f -> (exponents(f))_0);
-    	NOBodyVertices := apply(generatorExponents, v -> ((MF.k) / sum(v))*v); -- normalize the vertices
+    	NOBodyVertices := apply(generatorExponents, v -> ((MF.tupleMaxSize) / sum(v))*v); -- normalize the vertices
     	MF.cache.mfNOBody = convexHull transpose matrix NOBodyVertices;
 	);
     MF.cache.mfNOBody
@@ -934,17 +938,16 @@ NOBody GrMatchingField := MF -> (
 -- that corresponds to the grading (1 .. 1)
 NOBody FlMatchingField := MF -> (
     if not MF.cache.?mfNOBody then (
-	kmax := max MF.kList;
 	initialAlgebraGens := first entries leadTerm subalgebraBasis(plueckerAlgebra MF, AutoSubduce => false);
 	generatorExponents := matrix apply(initialAlgebraGens, f -> (exponents(f))_0);
-	gradingMap := matrix for gradingRow from 0 to #MF.kList -1 list(
-	    flatten for kIndex from 0 to kmax-1 list (
-	        if MF.kList_gradingRow - 1 == kIndex then (
-		    toList(MF.n : 1)
-		    ) else if MF.kList_gradingRow == kIndex then (
-		    toList(MF.n : -1)
+	gradingMap := matrix for gradingRow from 0 to #MF.tupleSizeList -1 list(
+	    flatten for kIndex from 0 to MF.tupleMaxSize - 1 list (
+	        if MF.tupleSizeList_gradingRow - 1 == kIndex then (
+		    toList(MF.tupleMaxValue : 1)
+		    ) else if MF.tupleSizeList_gradingRow == kIndex then (
+		    toList(MF.tupleMaxValue : -1)
 		    ) else (
-		    toList(MF.n : 0)
+		    toList(MF.tupleMaxValue : 0)
 		    )
 		)
 	    );
@@ -952,14 +955,14 @@ NOBody FlMatchingField := MF -> (
 	polyCone := coneFromVData coneRays;
 	-- take the part of the cone with grading (1 .. 1)
 	slice := polyhedronFromHData (
-	    matrix {toList(#MF.kList + kmax * MF.n : 0)},
+	    matrix {toList(#MF.tupleSizeList + MF.tupleMaxSize * MF.tupleMaxValue : 0)},
 	    matrix {{0}},
-	    id_(ZZ^(#MF.kList)) | matrix for row in MF.kList list for col from 1 to (MF.n * kmax) list 0,
-	    transpose matrix {toList(#MF.kList : 1)}
+	    id_(ZZ^(#MF.tupleSizeList)) | matrix for row in MF.tupleSizeList list for col from 1 to (MF.tupleMaxValue * MF.tupleMaxSize) list 0,
+	    transpose matrix {toList(#MF.tupleSizeList : 1)}
 	    );
 	NOBodyAsIntersection := intersection(polyCone, slice);
 	-- simplify by removing the grading part
-	NOBodyVertices := (vertices NOBodyAsIntersection)^{#MF.kList .. #MF.kList + MF.n * kmax - 1};
+	NOBodyVertices := (vertices NOBodyAsIntersection)^{#MF.tupleSizeList .. #MF.tupleSizeList + MF.tupleMaxValue * MF.tupleMaxSize - 1};
 	MF.cache.mfNOBody = convexHull NOBodyVertices;
 	);
     MF.cache.mfNOBody
@@ -1001,7 +1004,7 @@ matroidSubdivision(ZZ, ZZ, List) := (k, n, L) -> (
 
 matroidSubdivision GrMatchingField := MF -> (
     if not MF.cache.?computedMatroidSubdivision then (
-    	MF.cache.computedMatroidSubdivision = matroidSubdivision(MF.k, MF.n, getWeightPluecker MF);
+    	MF.cache.computedMatroidSubdivision = matroidSubdivision(MF.tupleMaxSize, MF.tupleMaxValue, getWeightPluecker MF);
     	);
     MF.cache.computedMatroidSubdivision
     )
@@ -1022,10 +1025,10 @@ weightMatrixCone GrMatchingField := opts -> MF -> (
 	) else (
 	-- form the matrix of inequalities A: such that the cone is Ax >= 0
 	local inequalities;
-	if MF.k > 1 then (
+	if MF.tupleMaxSize > 1 then (
             inequalities = matrix ( 
-	    	subsetList := subsets(1 .. MF.n, MF.k);
-	    	flatten for i from 0 to binomial(MF.n, MF.k) - 1 list (
+	    	subsetList := subsets(1 .. MF.tupleMaxValue, MF.tupleMaxSize);
+	    	flatten for i from 0 to binomial(MF.tupleMaxValue, MF.tupleMaxSize) - 1 list (
 	    	    columnIndices := subsetList_i;
 	    	    minimalTuple := MF.tuples_i;
 		    for p in delete(minimalTuple, permutations columnIndices) list (
@@ -1033,15 +1036,15 @@ weightMatrixCone GrMatchingField := opts -> MF -> (
 		    	-- E.g. if the minimal tuple is {1,2,3} then
 		    	--      one of the inequalities is given by {1,2,3} <= {1,3,2}
 		    	--      which cancels down further since 1 is in the same place
-		    	for coord in (0,1) .. (MF.k - 1 + opts.ExtraZeroRows, MF.n) list (
-		    	    sum {if coord_0 < MF.k and p_(coord_0) == coord_1 then 1 else 0, 
-			    	if coord_0 < MF.k and minimalTuple_(coord_0) == coord_1 then -1 else 0}
+		    	for coord in (0,1) .. (MF.tupleMaxSize - 1 + opts.ExtraZeroRows, MF.tupleMaxValue) list (
+		    	    sum {if coord_0 < MF.tupleMaxSize and p_(coord_0) == coord_1 then 1 else 0, 
+			    	if coord_0 < MF.tupleMaxSize and minimalTuple_(coord_0) == coord_1 then -1 else 0}
 		    	    )
 		    	)
 	    	    )
     	    	);
 	    ) else (
-	    inequalities = matrix {toList((MF.k + opts.ExtraZeroRows) * MF.n : 0)};
+	    inequalities = matrix {toList((MF.tupleMaxSize + opts.ExtraZeroRows) * MF.tupleMaxValue : 0)};
 	    );
 	C := coneFromHData(inequalities);   
 	if opts.ExtraZeroRows == 0 then MF.cache.computedWeightMatrixCone = C;
@@ -1053,9 +1056,8 @@ weightMatrixCone FlMatchingField := opts -> MF -> (
     if opts.ExtraZeroRows == 0 and MF.cache.?computedWeightMatrixCone then (
 	MF.cache.computedWeightMatrixCone
 	) else (
-    	kMax := max MF.kList;
     	weightMatrixConeList := for grMF in getGrMatchingFields MF list (
-	    weightMatrixCone(grMF, ExtraZeroRows => (kMax - grMF.k + opts.ExtraZeroRows))
+	    weightMatrixCone(grMF, ExtraZeroRows => (MF.tupleMaxSize - grMF.tupleMaxSize + opts.ExtraZeroRows))
 	    );
 	inequalityMatrix := facets (weightMatrixConeList_0);
 	hyperplanesMatrix := hyperplanes (weightMatrixConeList_0);
@@ -1077,7 +1079,7 @@ isCoherent = method()
 isCoherent MatchingField := MF -> (
     if MF.cache.?weightMatrix then true else (
 	C := weightMatrixCone MF;
-	(dim C) == (MF.k * MF.n) -- coherent iff C is full-dimensional
+	(dim C) == (MF.tupleMaxSize * MF.tupleMaxValue) -- coherent iff C is full-dimensional
 	)
     )
 
@@ -1094,7 +1096,7 @@ computeWeightMatrix MatchingField := MF -> (
     CRays := rays C;
     -- construct an interior point of the cone
     weight := first entries transpose sum for c from 0 to numColumns CRays - 1 list CRays_{c};
-    matrix for i from 0 to MF.k - 1 list weight_{i*MF.n .. (i+1)*MF.n - 1}
+    matrix for i from 0 to MF.tupleMaxSize - 1 list weight_{i*MF.tupleMaxValue .. (i+1)*MF.tupleMaxValue - 1}
     )
 
 --------------------------------------------
@@ -1117,7 +1119,7 @@ linearSpanTropCone = method(
 	}
     )
 
-linearSpanTropCone(GrMatchingField) := opts -> MF -> (
+linearSpanTropCone GrMatchingField := opts -> MF -> (
     if not MF.cache.?computedLinearSpanTropCone then (
     	if opts.VerifyToricDegeneration and not isToricDegeneration MF then (
 	    error("expected GrMatchingField that gives a toric degeneration.");
@@ -1145,14 +1147,14 @@ algebraicMatroid GrMatchingField := MF -> (
 -- write down the bases of the algebraic matroid as subsets 
 algebraicMatroidBases = method()
 algebraicMatroidBases GrMatchingField := MF -> (
-    SS := subsets(toList(1 .. MF.n), MF.k);
+    SS := subsets(toList(1 .. MF.tupleMaxValue), MF.tupleMaxSize);
     for B in bases algebraicMatroid MF list (i -> SS_i) \ B
     )
 
 -- write down the bases of the algebraic matroid as subsets 
 algebraicMatroidCircuits = method()
 algebraicMatroidCircuits GrMatchingField := MF -> (
-    SS := subsets(toList(1 .. MF.n), MF.k);
+    SS := subsets(toList(1 .. MF.tupleMaxValue), MF.tupleMaxSize);
     for B in circuits algebraicMatroid MF list (i -> SS_i) \ B
     )
 
@@ -1172,13 +1174,13 @@ TopeField = new Type of HashTable
 topeField = method()
 topeField GrMatchingField := MF -> (
     new TopeField from {
-	"type" => toList(MF.k : 1),
+	"type" => toList(MF.tupleMaxSize : 1),
 	"matchingField" => MF
 	}
     )
 
 topeField(GrMatchingField, List) := (MF, type) -> (
-    assert(sum type == MF.k);
+    assert(sum type == MF.tupleMaxSize);
     new TopeField from {
 	"type" => type,
 	"matchingField" => MF
@@ -1186,7 +1188,7 @@ topeField(GrMatchingField, List) := (MF, type) -> (
     )
 
 net TopeField := TF -> (
-    ("Tope field: n = " | toString TF#"matchingField".n | " and type = " | toString TF#"type")
+    ("Tope field: n = " | toString TF#"matchingField".tupleMaxValue | " and type = " | toString TF#"type")
     )
 
 getTuples TopeField := TF -> (
@@ -1201,24 +1203,24 @@ isLinkage = method()
 isLinkage TopeField := TF -> (
     result := true;
     MF := TF#"matchingField";
-    subsetList := subsets(1 .. MF.n, MF.k);
-    subsetIndex := new HashTable from for j from 0 to binomial(MF.n, MF.k)-1 list subsetList_j => j;
+    subsetList := subsets(1 .. MF.tupleMaxValue, MF.tupleMaxSize);
+    subsetIndex := new HashTable from for j from 0 to binomial(MF.tupleMaxValue, MF.tupleMaxSize)-1 list subsetList_j => j;
     tuples := getTuples MF;
     
-    for s in subsets(1 .. MF.n, MF.k + 1) do (
+    for s in subsets(1 .. MF.tupleMaxValue, MF.tupleMaxSize + 1) do (
 	-- take the union of all edges over the k-subsets of s
         -- list the vertices in L adjacent to each j in R in the union
         -- L edges: 1 .. n
 	-- R edges: n+1 .. n+t where t = #TF#"type"
 	
-	edges := flatten flatten for s' in subsets(s, MF.k) list (
+	edges := flatten flatten for s' in subsets(s, MF.tupleMaxSize) list (
 	    tuple := tuples_(subsetIndex#s');  
 	    tuplePosition := -1;
 	    for typeIndex from 0 to #TF#"type"-1 list (
 	        t := TF#"type"_typeIndex;
 		 for j from 1 to t list (
 		    tuplePosition = tuplePosition +1;
-		    {tuple_tuplePosition, MF.n + typeIndex + 1}
+		    {tuple_tuplePosition, MF.tupleMaxValue + typeIndex + 1}
 		    )
 		)
 	    );
@@ -1241,21 +1243,21 @@ isLinkage GrMatchingField := MF -> (
 amalgamation = method()
 amalgamation(ZZ, TopeField) := (i, TF) -> (
     assert(isLinkage TF);
-    assert(1 <= i and i <= TF#"matchingField".n);
+    assert(1 <= i and i <= TF#"matchingField".tupleMaxValue);
     MF := TF#"matchingField";
-    subsetList := subsets(1 .. MF.n, MF.k);
-    subsetIndex := new HashTable from for j from 0 to binomial(MF.n, MF.k)-1 list subsetList_j => j;
+    subsetList := subsets(1 .. MF.tupleMaxValue, MF.tupleMaxSize);
+    subsetIndex := new HashTable from for j from 0 to binomial(MF.tupleMaxValue, MF.tupleMaxSize)-1 list subsetList_j => j;
     tuples := getTuples MF;
     
     -- construct the new tuples of the matching field:
-    newTuples := for s in subsets(1 .. MF.n, MF.k + 1) list (
+    newTuples := for s in subsets(1 .. MF.tupleMaxValue, MF.tupleMaxSize + 1) list (
 	-- take the union of all edges over the k-subsets of s
         -- list the vertices in L adjacent to each j in R in the union
 	edges := new MutableHashTable from for j from 0 to #TF#"type"-1 list (
 	    j => set {}
 	    );
 	
-	for s' in subsets(s, MF.k) do (
+	for s' in subsets(s, MF.tupleMaxSize) do (
 	    tuple := tuples_(subsetIndex#s');  
 	    tuplePosition := -1;
 	    for typeIndex from 0 to #TF#"type"-1 do (
@@ -1271,7 +1273,7 @@ amalgamation(ZZ, TopeField) := (i, TF) -> (
 	matchedR := set {i-1};
 	
 	-- remove the edges of the union graph to get the amalgamation
-	while #matchedL < MF.k+1 do (
+	while #matchedL < MF.tupleMaxSize + 1 do (
 	    for j from 0 to #TF#"type"-1 do (
 		if not member(j, matchedR) then (
 		    edges#j = edges#j - matchedL;
@@ -1287,7 +1289,7 @@ amalgamation(ZZ, TopeField) := (i, TF) -> (
 	);
     
     
-    newMF := grMatchingField(MF.k+1, MF.n, newTuples);
+    newMF := grMatchingField(MF.tupleMaxSize + 1, MF.tupleMaxValue, newTuples);
     newType := for j from 1 to #TF#"type" list if i == j then TF#"type"_(j-1)+1 else TF#"type"_(j-1); 
     
     topeField(newMF, newType)
@@ -2096,7 +2098,7 @@ doc ///
 	Lfl = matchingFieldFromPermutation(kList, n, S, RowNum => r) 
       Inputs
         k: ZZ
-	kList: List
+        kList: List
 	n: ZZ
 	S: List
 	  a permutation of $1, \dots, n$
@@ -2167,9 +2169,9 @@ doc ///
 	  MatchingField has the following fields:
 	  
 	  @ UL {
-	    {"k of type ZZ"},
-	    {"kList of type List"},
-	    {"n of type ZZ"},
+	    {"tupleMaxSize of type ZZ"},
+	    {"tupleSizeList of type List"},
+	    {"tupleMaxValue of type ZZ"},
 	    {"tuples of type List, accessible with", TO {"getTuples"}},
 	    {"cache"}
 	  }@
@@ -2208,15 +2210,16 @@ doc ///
 	  Grassmannian matching fields have the following fields:
 	  
 	  @ UL {
-	    {"k of type ZZ"},
-	    {"n of type ZZ"},
+	    {"tupleMaxSize of type ZZ"},
+	    {"tupleSizeList of type List"},
+	    {"tupleMaxValue of type ZZ"},
 	    {"tuples of type List, accessible with", TO {"getTuples"}},
 	    {"cache"}
 	  }@
       
 	  Everything else, including: weight matrices; polynomial rings, maps and ideals; polyhedra
 	  such as the weight matrix cone and matching field polytope, are all stored inside the cache.
-	  Note that the package does not export the keys, such as k or n. 
+	  Note that the package does not export the keys, such as tupleMaxSize or tupleMaxValue. 
 	  If you wish to directly address the contents of the
 	  GrMatchingField, then use "debug MatchingFields".
       SeeAlso
@@ -2246,16 +2249,16 @@ doc ///
 	  flag matching fields have the following fields:
 	  
 	  @ UL {
-	    {"kList of type ZZ"},
-	    {"n of type ZZ"}, 
-	    {"grMatchingFieldList of type List, the list of Grassmannian matching fields contained within,
-	    accessible with the function", TO "getGrMatchingFields"},
+	    {"tupleSizeList of type List"},
+	    {"tupleMaxSize of type ZZ"},
+	    {"tupleMaxValue of type ZZ"},
+	    {"tuples of type List, accessible with", TO {"getTuples"}},
 	    {"cache"}
 	  }@
 	  
 	  Everything else, including: weight matrices; polynomial rings, maps and ideals; polyhedra
 	  such as the weight matrix cone and matching field polytope, are all stored inside the cache.
-	  Note that the package does not export the keys, such as kList or n. 
+	  Note that the package does not export the keys, such as tupleSizeList or tupleMaxValue. 
 	  If you wish to directly address the contents of the
 	  FlMatchingField, then use "debug MatchingFields".
       SeeAlso
@@ -2277,11 +2280,11 @@ doc ///
         matching field parametrised by permutations
       Usage
         Lgr = matchingFieldFromPermutation(k, n, S)
-	Lfl = matchingFieldFromPermutation(kList, n, S)
+	Lfl = matchingFieldFromPermutation(tupleSizeList, n, S)
       Inputs
         k: ZZ
 	  positive integer; the size of the tuples of the Grassmannian matching field
-	kList: List
+        tupleSizeList: List
           positive integers; the sizes of the tuples of the flag matching field
 	n: ZZ
 	  positive integer; the tuples have entries in 1 .. n
@@ -2436,10 +2439,10 @@ doc ///
         use a diagonal weight matrix with multiples of certain powers
       Usage
         Lgr = matchingFieldFromPermutation(k, n, S, UsePrimePowers => b, PowerValue => v)
-	Lfl = matchingFieldFromPermutation(kList, n, S, UsePrimePowers => b, PowerValue => v) 
+	Lfl = matchingFieldFromPermutation(tupleSizeList, n, S, UsePrimePowers => b, PowerValue => v) 
       Inputs
         k: ZZ
-	kList: List
+        tupleSizeList: List
 	n: ZZ
 	S: List
 	  a permutation of $1, \dots, n$
@@ -2492,10 +2495,10 @@ doc ///
         scale the permuted row of the weight matrix
       Usage
         Lgr = matchingFieldFromPermutation(k, n, S, ScalingCoefficient => c)
-	Lfl = matchingFieldFromPermutation(kList, n, S, ScalingCoefficient => c) 
+	Lfl = matchingFieldFromPermutation(tupleSizeList, n, S, ScalingCoefficient => c) 
       Inputs
         k: ZZ
-	kList: List
+        tupleSizeList: List
 	n: ZZ
 	S: List
 	  a permutation of $1, \dots, n$
@@ -2535,11 +2538,11 @@ doc ///
         the diagonal matching field
       Usage
         Lgr = diagonalMatchingField(k, n)
-	Lfl = diagonalMatchingField(kList, n)
+	Lfl = diagonalMatchingField(tupleSizeList, n)
 	Lfl = diagonalMatchingField(n)
       Inputs
         k: ZZ
-	kList: List
+        tupleSizeList: List
 	n: ZZ
       Outputs
         Lgr: GrMatchingField
@@ -2565,8 +2568,8 @@ doc ///
 	  for the full flag variety. The matching fields of the full flag variety have tuples of
 	  size $1, 2, \dots, n-1$.
 	  The function can be made to produce diagonal matching fields for partial flag varieties
-	  by supplying it a list $kList$ and integer $n$. The sizes of the tuples are the entries
-	  of $kList$.
+	  by supplying it a list $tupleSizeList$ and integer $n$. The sizes of the tuples are the entries
+	  of $tupleSizeList$.
 	Example
 	  L = diagonalMatchingField 4;
 	  netList getTuples L
@@ -2770,12 +2773,12 @@ doc ///
       Headline
         Construct a matching field
       Usage
-	L = matchingField(weightMatrix, tupleIndices, kList)
-	L = matchingField(n, tupleList, kList)
+	L = matchingField(weightMatrix, tupleIndices, tupleSizeList)
+	L = matchingField(n, tupleList, tupleSizeList)
       Inputs
         n: ZZ
 	  positive integer; the tuples have entries in 1 .. n
-	kList: List
+        tupleSizeList: List
 	  positive integers; the sizes of the tuples of the matching field
 	tupleIndices : List
 	  list of subsets; the indices of tuples for the matching field (subsets of 0 .. n-1)
@@ -2937,7 +2940,7 @@ doc ///
 	  L3 = grMatchingField(2, 4, {{3,4},{2,4},{1,4},{2,3},{1,3},{1,2}})
 	  L3 == L1
 	Text
-	  In the case of flag matching fields, the $kList$s must be equal.
+	  In the case of flag matching fields, the $tupleSizeList$s must be equal.
 	Example
 	  L1 = diagonalMatchingField({1,2}, 4)
 	  getWeightMatrix L1
@@ -2976,7 +2979,7 @@ doc ///
       Description
         Text
 	  Two matching fields are said to be equal if their tuples are equal.
-	  In the case of flag matching fields, the $kList$s must be equal.
+	  In the case of flag matching fields, the $tupleSizeList$s must be equal.
 	Example
 	  L1 = diagonalMatchingField({1,2}, 4)
 	  getWeightMatrix L1
@@ -3043,7 +3046,7 @@ doc ///
         L: {GrMatchingField, FlMatchingField}
       Description
         Text
-	  The @TO "net"@ of a matching field displays $k$ or $kList$ and $n$ for that matching field.
+	  The @TO "net"@ of a matching field displays $k$ or $tupleSizeList$ and $n$ for that matching field.
 	  See @TO "GrMatchingField"@ and @TO "FlMatchingField"@.
       SeeAlso
         GrMatchingField
