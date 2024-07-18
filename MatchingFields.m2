@@ -132,9 +132,9 @@ matchingField = method(
 
 -- Matching field from weight matrix:
 -- M : weight matrix
--- S : list of subsets
+-- S : list of subsets (subsets of column indices)
 -- K : list of subset sizes (for displaying GrMatchingField and FlMatchingField)
-matchingField(Matrix, List, List) := (M, S, K) -> (
+matchingField(List, List, Matrix) := (K, S, M) -> (
     -- uses min convention   
     -- returns matching field for weight matrix along with the weight for the Plucker variables
     -- NB we assume the MF is well defined from the weight matrix
@@ -174,7 +174,10 @@ matchingField(Matrix, List, List) := (M, S, K) -> (
     )
 
 -- MF from tuples
-matchingField(ZZ, List, List) := (Ln, L, K) -> (
+-- K  : list of subset sizes
+-- Ln : maximum value in tuple
+-- L  : list of tuples
+matchingField(List, ZZ, List) := (K, Ln, L) -> (
     -- sort tuples:
     -- 1) first compare the sizes
     -- 2) tuples of the same size are sorted by revlex order
@@ -202,7 +205,7 @@ grMatchingField = method(
 grMatchingField(Matrix) := M -> (
     Mn := numcols M;
     Mk := numrows M;
-    new GrMatchingField from matchingField(M, subsets(Mn, Mk), {Mk})
+    new GrMatchingField from matchingField({Mk}, subsets(Mn, Mk), M)
     )
 
 -- Matching Field from list of tuples
@@ -211,7 +214,7 @@ grMatchingField(ZZ, ZZ, List) := (Lk , Ln, L) -> (
     if not allKSubsets(Lk, Ln, L) then (
 	error("Unexpected tuples.");
 	);
-    new GrMatchingField from matchingField(Ln, L, {Lk})
+    new GrMatchingField from matchingField({Lk}, Ln, L)
     )
 
 -- check if L is the set of tuples of a Grassmannian Matching Field 
@@ -234,7 +237,7 @@ flMatchingField(List, Matrix) := (inputKList, inputWeightMatrix) -> (
     Mn := numcols inputWeightMatrix;
     subsetList := flatten for Mk in inputKList list subsets(Mn, Mk);
     grMatchingFields := for Mk in inputKList list grMatchingField(inputWeightMatrix^(toList(0 .. Mk - 1)));
-    new FlMatchingField from matchingField(inputWeightMatrix, subsetList, sort inputKList)
+    new FlMatchingField from matchingField(sort inputKList, subsetList, inputWeightMatrix)
     )
 
 flMatchingField(Matrix) := inputWeightMatrix -> (
@@ -249,7 +252,7 @@ flMatchingField(List, ZZ, List) := (LkList, Ln, L) -> (
 	    error("Unexpected tuples.");
 	    );
 	);
-    new FlMatchingField from matchingField(Ln, L, LkList)
+    new FlMatchingField from matchingField(LkList, Ln, L)
     )
 
 html GrMatchingField := 
@@ -1422,7 +1425,7 @@ doc ///
 	  to the $k \times k$ maximal minor of the matrix $(x_{i,j})$ whose columns are indexed by the set $I$.
 	  It is well-known that this ideal has a Groebner basis consisting of homogeneous quadrics.
 	  
-	  The function @TO "plueckerIdeal"@ takes a matching field, either for the Grassmannian or a partial flag variety
+	  The function @TO "plueckerIdeal"@ takes a matching field, either for the Grassmannian or a partial flag variety,
 	  and outputs the Pluecker ideal for that Grassmannian or partial flag variety. The ambient polynomial ring that
 	  contains this ideal is constructed to have the term order induced by the matching field.
 	  
@@ -1542,7 +1545,7 @@ doc ///
         getGrMatchingFields
 	(getGrMatchingFields, FlMatchingField)
       Headline
-        The Grassmannian matching fields of a Flag matching field
+        The Grassmannian matching fields of a partial flag matching field
       Usage
         matchingFieldList = getGrMatchingFields L
       Inputs
@@ -1567,8 +1570,8 @@ doc ///
 	  is a diagonal matching field, which are induced by a submatrix of the original
 	  weight matrix that induces the flag matching field.
       SeeAlso
-      Subnodes
-
+        FlMatchingField
+        GrMatchingField
 ///
 
 doc ///
@@ -1595,7 +1598,7 @@ doc ///
       Description
         Text
 	  This function is the basic constructor for
-	  matching fields for partial flag varieties, which we simply call
+	  matching fields for partial flag varieties, often called
 	  flag matching fields. The function outputs an instance of type @TO "FlMatchingField"@,
 	  which represents the flag matching field and stores all data related and 
 	  computed about it.
@@ -1643,9 +1646,9 @@ doc ///
 	  returns a weight matrix that induces the matching field, if it exists.
 	  If the matching field is not coherent, then these methods produce an error.
 	  
-	  A note of caution. Two different weight matrices may induce the same matching field
-	  so the function @TO "getWeightMatrix"@ may return a weight matrix that is
-	  different to what may be expected. However, if a matching field is defined 
+	  A note of caution. Two different weight matrices may induce the same matching field.
+	  So, the function @TO "getWeightMatrix"@ may return a unexpected weight matrix.
+	  However, if a matching field is defined 
 	  by a weight matrix, then that weight matrix will be returned.
 	  
       SeeAlso
@@ -1692,6 +1695,8 @@ doc ///
 	Example
 	  L = diagonalMatchingField(2, 4)
 	  m = matchingFieldRingMap L
+	  p_(1,2)
+	  m p_(1,2)
 	  I = matchingFieldIdeal L
 	  ker m === I
 	Text
@@ -1820,7 +1825,7 @@ doc ///
       Usage
         m = plueckerMap L
       Inputs
-        L: {GrMatchingField, FlMatchingField}
+        L: {MatchingField, GrMatchingField, FlMatchingField}
 	MonomialOrder => String 
 	  either "default" or "none" (supply "none" only if $L$ is not coherent)
       Outputs
@@ -1887,7 +1892,7 @@ doc ///
         L: {GrMatchingField, FlMatchingField}
 	ExtraZeroRows => ZZ
 	  produces a cone embedded in a higher dimensional space
-	  typically used for constructing weight matrix cones for flag matching fields
+	  typically used internally for constructing weight matrix cones for flag matching fields
       Outputs
         C: Cone
 	  the cone of weight matrices that induce the matching field
@@ -2769,20 +2774,20 @@ doc ///
 doc ///
       Key
          matchingField
-        (matchingField, Matrix, List, List)
-	(matchingField, ZZ, List, List)
+        (matchingField, List, List, Matrix)
+	(matchingField, List, ZZ, List)
       Headline
         Construct a matching field
       Usage
-	L = matchingField(weightMatrix, tupleIndices, tupleSizeList)
-	L = matchingField(n, tupleList, tupleSizeList)
+	L = matchingField(tupleSizeList, tupleIndices, weightMatrix)
+	L = matchingField(tupleSizeList, n, tupleList)
       Inputs
         n: ZZ
 	  positive integer; the tuples have entries in 1 .. n
         tupleSizeList: List
 	  positive integers; the sizes of the tuples of the matching field
 	tupleIndices : List
-	  list of subsets; the indices of tuples for the matching field (subsets of 0 .. n-1)
+	  list of subsets; the indices of columns of matrix that form tuples (subsets of 0 .. n-1)
 	tupleList : List
 	  list of subsets; the tuples of the matching fields (subsets of 1 .. n)
 	weightMatrix: Matrix
@@ -2795,13 +2800,19 @@ doc ///
 	  The function outputs an instance of type @TO "MatchingField"@,
 	  which represents the matching field and stores all data related and 
 	  computed about it.
+
+	  It is recommended for users to use the functions @TO "grMatchingField"@ to construct
+	  matching fields for the Grassmannian and @TO "flMatchingField"@ to construct
+	  matching fields for partial flag varieties. These functions produce objects of type
+	  @TO "GrMatchingField"@ and @TO "FlMatchingField"@ respectively, which have clear
+	  uses in this package.
 	  
 	  There are two basic ways to define a matching field. The first way is to
 	  supply a weight matrix that induces the matching field. This produces a coherent matching field
 	  and is well-defined if the weight matrix is {\it generic}.
 	Example
 	  M = matrix {{0,0,0,0}, {1,3,2,4}}
-	  L1 = matchingField(M, {{0}, {1}, {0, 1}, {0, 2}, {0, 3}}, {1, 2})
+	  L1 = matchingField({1, 2}, {{0}, {1}, {0, 1}, {0, 2}, {0, 3}}, M)
 	  getTuples L1
 	Text
 	  In the above example, we construct a matching field 
@@ -2812,18 +2823,20 @@ doc ///
 	  is to list out its tuples.
 	Example
 	  T = {{1,4}, {2,4}, {3,4}, {3,1}, {3,2}, {1,2}}
-	  L2 = matchingField(4, T, {2})
+	  L2 = matchingField({2}, 4, T)
 	  getTuples L2
 	Text
-	  As shown in the example above, the first argument "n" 
+	  As shown in the example above, the first argument "{2}"
+	  specifies the sizes of the tuples of the matching field.
+	  The second argument "4"
 	  specifies the maximum value of elements in the tuples.
-	  The second argument is the list of tuples of the matchin field.
+	  The third argument is the list of tuples of the matching field.
 	  Note that the tuples can be supplied in any order.
-	  The third argument is a list of sizes of subsets.
 	  
 	  It is recommended to use Grassmannian matching fields or
 	  partial flag matching fields for computing toric degenerations
-	  as these objects have access to the function @TO "isToricDegeneration"@.
+	  as these objects have access to the function @TO "isToricDegeneration"@
+	  and @TO "pluecker ideal"@.
       SeeAlso
         MatchingField
         GrMatchingField
@@ -2976,7 +2989,7 @@ doc ///
       Usage
         net L
       Inputs
-        L: MatchingField
+        L: {MatchingField, GrMatchingField, FlMatchingField}
       Description
         Text
 	  The @TO "net"@ of a matching field displays size of the tuples of the matching field
