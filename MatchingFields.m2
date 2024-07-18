@@ -470,7 +470,7 @@ setupMatchingFieldRings MatchingField := opts -> MF -> (
 	    );
 	MF.cache.ringX = QQ[x_(1,1) .. x_(MF.tupleMaxSize, MF.tupleMaxValue), MonomialOrder => monomialOrder];
 	);
-    if not MF.cache.?X then (
+    if not MF.cache.?XVarMatrix then (
 	MF.cache.XVarMatrix = transpose genericMatrix(MF.cache.ringX, MF.tupleMaxValue, MF.tupleMaxSize);
 	);
     )
@@ -1321,18 +1321,19 @@ doc ///
 	  distinguishes the term $x_{1,1} x_{2,2}$ from the maximal minors on columns $1$ and $2$ of $X$: $x_{1,1} x_{2,2} - x_{1,2} x_{2,1}$.
 	  Similarly for the terms $x_{1,3} x_{2,1}$, $x_{1,1} x_{2,4}$, and so on.
 	  
-	  If the terms of all maximal minors distinguished by a matching field are their initial terms with respect to a fixed weight matrix,
+	  If the terms of all maximal minors distinguished by a matching field are their respective initial terms with respect to a fixed weight matrix,
 	  then we say that the matching field is coherent. Each such weight matrix induces a weight vector on the Pluecker coordinates of the 
 	  Grassmannian. If the initial ideal of the Pluecker ideal of the Grassmannian with respect to this weight vector is a toric ideal,
 	  i.e. a prime binomial ideal, then we say that the matching field gives rise to a toric degeneration of the Grassmannian.
 	  By a result of Sturmfels (1996), a matching field gives rise to a toric degeneration if and only if the maximal minors of $X$ form
-	  a subalgebra basis (or SAGBI basis) with respect to the order induced by the weight matrix.
+	  a subalgebra basis (or SAGBI basis, respectively Khovanskii basis) with respect to the order (respectively valuation) induced by the weight matrix.
 	  
 	  This concept naturally generalises to partial flag varieties under the Pluecker embedding.
 	  
-	  The MatchingFields package gives basic functions, to construct many of the well-studied examples of matching fields.
-	  Given a matching field $L$, it is straight forward to check whether $L$ is coherent, what is a weight matrix that induces it,
-	  and whether is gives rise to a toric degeneration. The package also produces polytopes associated to matching fields and Newton-Okounkov bodies.
+	  The MatchingFields package provides functions to construct many of the well-studied examples of matching fields.
+	  Given a matching field $L$, the package provides functions to: check whether $L$ is coherent; find a weight matrix that induces it;
+	  and test whether $L$ gives rise to a toric degeneration. The package also produces polytopes associated to matching fields and can compute
+	  their Newton-Okounkov bodies.
         Example
 	  L = grMatchingField(2, 4, {{1,2}, {3,1}, {1,4}, {3,2}, {2,4}, {3,4}})
 	  isCoherent L
@@ -2962,93 +2963,27 @@ doc ///
       Subnodes
 ///
 
--*
-doc ///
-      Key
-        (symbol ==, FlMatchingField, FlMatchingField)
-      Headline
-        equality of flag matching fields
-      Usage
-        result = L1 == L2
-      Inputs
-        L1: FlMatchingField
-	L2: FlMatchingField
-      Outputs
-        result: Boolean
-	  are the flag matching fields equal
-      Description
-        Text
-	  Two matching fields are said to be equal if their tuples are equal.
-	  In the case of flag matching fields, the $tupleSizeList$s must be equal.
-	Example
-	  L1 = diagonalMatchingField({1,2}, 4)
-	  getWeightMatrix L1
-	  getTuples L1
-	  L2 = flMatchingField({1,2}, matrix {{0,0,0,0}, {8,4,2,1}})
-	  getWeightMatrix L2
-	  getTuples L2
-	  L1 == L2
-	  L3 = flMatchingField({1,2}, 4, {{{1}, {4}, {3}, {2}}, {{3,4},{2,4},{1,4},{2,3},{1,3},{1,2}}})
-	  L3 == L1
-      SeeAlso
-        GrMatchingField
-        FlMatchingField
-	getTuples
-	getWeightMatrix
-      Subnodes
-      
-///
-
-doc ///
-      Key
-        (symbol ==, GrMatchingField, GrMatchingField)
-      Headline
-        equality of Grassmannian matching fields
-      Usage
-        result = L1 == L2
-      Inputs
-        L1: GrMatchingField
-	L2: GrMatchingField
-      Outputs
-        result: Boolean
-	  are the matching fields equal
-      Description
-        Text
-	  Two matching fields are said to be equal if their tuples are equal.
-	Example
-	  L1 = diagonalMatchingField(2, 4)
-	  getWeightMatrix L1
-	  getTuples L1
-	  L2 = grMatchingField matrix {{0,0,0,0}, {8,4,2,1}}
-	  getWeightMatrix L2
-	  getTuples L2
-	  L1 == L2
-	  L3 = grMatchingField(2, 4, {{3,4},{2,4},{1,4},{2,3},{1,3},{1,2}})
-	  L3 == L1
-      SeeAlso
-        GrMatchingField
-        FlMatchingField
-	getTuples
-	getWeightMatrix
-      Subnodes      
-///
-*-
-
 doc ///
       Key
         (net, GrMatchingField)
 	(net, FlMatchingField)
+	(net, MatchingField)
+	(html, GrMatchingField)
+	(html, FlMatchingField)
+	(html, MatchingField)
       Headline
         display a matching field
       Usage
         net L
       Inputs
-        L: {GrMatchingField, FlMatchingField}
+        L: MatchingField
       Description
         Text
-	  The @TO "net"@ of a matching field displays $k$ or $tupleSizeList$ and $n$ for that matching field.
-	  See @TO "GrMatchingField"@ and @TO "FlMatchingField"@.
+	  The @TO "net"@ of a matching field displays size of the tuples of the matching field
+	  and the maximum value in a tuple for that matching field.
+	  See @TO "MatchingField"@, @TO "GrMatchingField"@, and @TO "FlMatchingField"@.
       SeeAlso
+        MatchingField
         GrMatchingField
         FlMatchingField
       Subnodes      
