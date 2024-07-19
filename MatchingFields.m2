@@ -1736,7 +1736,9 @@ doc ///
         For some versions of the package @TO "FourTiTwo"@, the strategy "4ti2" may not correctly take into account the weights. See the caveat in the
 	documentation of the function @TO "toricGroebner"@. If there are any problems, it may be more reliable to use the option "M2".
       SeeAlso
-      Subnodes
+        MatchingField
+	GrMatchingField
+	FlMatchingField
 ///
 
 doc ///
@@ -1810,6 +1812,8 @@ doc ///
     	  Q = matchingFieldPolytope L 
 	  Q == P12
       SeeAlso
+        GrMatchingField
+	FlMatchingField
         ExtraZeroRows
       Subnodes
         ExtraZeroRows
@@ -1872,11 +1876,15 @@ doc ///
 	  The monomial map associated to the matching field, see @TO "matchingFieldRingMap"@ 
 	  is the map that sends each
 	  Pluecker variable $P_J \mapsto \rm{in}(\det(X_J))$ to the lead term of the
-	  maximal minor $\det(X_J)$. 
-	
+	  maximal minor $\det(X_J)$. 	
       SeeAlso
+        MatchingField
+	GrMatchingField
+	FlMatchingField
       Subnodes
 ///
+
+-- mark --
 
 doc ///
       Key
@@ -2014,6 +2022,10 @@ doc ///
 	  If the matching field provided is not defined in terms of a 
 	  weight matrix then one is automatically computed for it.
 	  If the matching field is not coherent then this will produce an error.
+
+	  A note of caution. While this function takes any object of type @TO "MatchingField"@, the
+	  will produce an error if the supplied object is not of type @TO "GrMatchingField"@ or
+	  @TO "FlMatchingField"@.
       SeeAlso
         matchingFieldIdeal
 	plueckerIdeal
@@ -2835,8 +2847,8 @@ doc ///
 	  
 	  It is recommended to use Grassmannian matching fields or
 	  partial flag matching fields for computing toric degenerations
-	  as these objects have access to the function @TO "isToricDegeneration"@
-	  and @TO "pluecker ideal"@.
+	  as these objects have access to the functions @TO "isToricDegeneration"@
+	  and @TO "plueckerIdeal"@.
       SeeAlso
         MatchingField
         GrMatchingField
