@@ -6,7 +6,7 @@ newPackage(
     Version => "1.2",
     Date => "November 23, 2023",
     Authors => {
-	{Name => "Oliver Clarke", Email => "oliver.clarke@ed.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
+	{Name => "Oliver Clarke", Email => "oliver.clarke@durham.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
 	},
     Headline => "Toric degenerations of flag varieties via matching fields",
     Keywords => {"Flag Varieties"},
