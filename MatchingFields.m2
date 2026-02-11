@@ -1425,7 +1425,7 @@ doc ///
         Text
           In the above example, the weights for the ambient ring are not the same as the Pluecker weights of the matching field.
           This is because of the minimum-maximum convention problem. For compatibility with packages such as @TO "Tropical"@, we use
-          the minimum convention in @TO "MatchingFields"@ so the smallest weight with respect to the weight matrix that
+          the minimum convention in @TT "MatchingFields"@ so the smallest weight with respect to the weight matrix that
           induces the matching field is the initial term of a Pluecker form.
           However, the monomial ordering given by @TO "Weights"@ uses the
           maximum convention, so the ambient ring has weights that are based on the negative of the induced Pluecker Weight.
@@ -1501,14 +1501,14 @@ doc ///
           The algebraic matroid of the cone in Trop Gr$(k,n)$ that induces the matching field.
       Description
         Text
-          Let $V \subseteq \CC^n$ be an affine variety
+          Let $V \subseteq \CC^n$ be an affine variety.
           The algebraic matroid of $V$ is a matroid whose independent sets $S \subseteq [n]$
           are the subsets such that the projection from $V$ to the coordinates indexed by $S$
           is a dominant morphism. Similarly, if $C \subseteq \RR^n$ is a polyhedral cone, then the algebraic matroid
           of $C$ is the matroid whose independent sets $S \subseteq [n]$ are the subsets such that image of the
           projection of $C$ onto the coordinates indexed by $S$ is full-dimensional.
 
-          In the case of the affine cone of Grassmannian under the Pluecker embedding,
+          In the case of the affine cone of the Grassmannian under the Pluecker embedding,
           there are a few different ways to compute its algebraic matroid. One way is to use its tropicalization.
           The algebraic matroid of the Grassmannian is equal to the matroid whose bases are the union of all bases of the
           algebraic matroid for all maximal cones of Trop Gr($k$, $n$).
@@ -1593,12 +1593,12 @@ doc ///
           There are three basic ways to define a flag matching field. The first way is to
           supply a weight matrix that induces the flag matching field. This produces a flag matching field
           for the full flag variety.
-          Example
+        Example
           M = matrix {{0,0,0,0}, {4,2,3,1}, {10, 40, 30, 20}}
           L1 = flMatchingField M
           netList getTuples L1
           isToricDegeneration L1
-          Text
+        Text
           In the above example, we construct the flag matching field for the full
           flag variety induced by the given weight matrix. The tuples for the
           flag matching field are listed by their size. Similarly to Grassmannian
@@ -1609,12 +1609,12 @@ doc ///
           The second way to define a flag matching field
           is to supply a weight matrix and specify the size of the sets
           or, in other words, specify the dimensions of the vector spaces in the flags.
-          Example
+        Example
           L2 = flMatchingField({1,2}, M)
           netList getTuples L2
-          Text
+        Text
           The third way to define a flag matching field is by listing out its tuples.
-          Example
+        Example
           L3 = flMatchingField({1,3}, 4, {
                   {1}, {2}, {3}, {4},
                   {3, 2, 1}, {2, 4, 1}, {3, 4, 1}, {3, 2, 4}
@@ -1622,7 +1622,7 @@ doc ///
           getTuples L3
           isCoherent L3
           getWeightMatrix L3
-          Text
+        Text
           As shown in the example above, the first argument "kList"
           specifies the size of the sets.
           The third argument is a list of tuples of the matching field.
@@ -1913,11 +1913,11 @@ doc ///
           For matching fields that are not originally defined by a weight matrix, the cone of weight matrices
           allows us to test if the matching field is coherent. The matching field is coherent if and only if
           the cone is full dimensional. This is the strategy implemented by the function @TO "isCoherent"@.
-          Example
+        Example
           L = grMatchingField(2, 3, {{1, 2}, {2, 3}, {3, 1}})
           isCoherent L
           dim weightMatrixCone L
-          Text
+        Text
           In the example above, the cone naturally lives in $\RR^6$ so it is not full dimensional.
           Therefore, the matching field is not coherent.
       SeeAlso
@@ -2026,7 +2026,7 @@ doc ///
       Usage
         tuples = getTuples L
       Inputs
-        L: {GrMatchingField, FlMatchingField}
+        L: {MatchingField, GrMatchingField, FlMatchingField}
       Outputs
         tuples: List
           A list of subsets of $1, \dots, n$; the tuples of the matching field
@@ -2085,7 +2085,6 @@ doc ///
           The matching field is coherent if and only if the weight matrix cone is full dimensional.
           If the matching field happens to be coherent, then an interior point is used for any further
           computations that require a weight matrix.
-
       SeeAlso
         weightMatrixCone
       Subnodes
@@ -2095,7 +2094,7 @@ doc ///
       Key
         RowNum
       Headline
-        the row of the diagonal weight matrix to permute
+        The row of the diagonal weight matrix to permute
       Usage
         Lgr = matchingFieldFromPermutation(k, n, S, RowNum => r)
         Lfl = matchingFieldFromPermutation(kList, n, S, RowNum => r)
@@ -2129,7 +2128,7 @@ doc ///
       Key
         ExtraZeroRows
       Headline
-        enlarging a matrix with zero rows
+        Enlarge a (weight) matrix with zero rows
       Description
         Text
           The option @TO "ExtraZeroRows"@ is used by the functions @TO "matchingFieldPolytope"@ and
@@ -2143,10 +2142,10 @@ doc ///
           C = weightMatrixCone(L, ExtraZeroRows => 1)
           rays C
         Text
-          In the above examples, the polyhedral object typically live in the space $\RR^{2 \times 4}$. However,
-          by adding an additional row, the objects live in $\RR^{3 \times 4} \cong \RR^{12}$.
-          Reading the down the entries of columns corresponds to reading row-by-row the entries of the corresponding
-          matrix.
+          In the above examples, the polyhedral objects typically live in the space $\RR^{2 \times 4}$. However,
+          by adding an extra row, the objects live in $\RR^{3 \times 4} \cong \RR^{12}$.
+          Reading the entries of columns from top-to-bottom corresponds to reading the entries of the corresponding
+          matrix row-by-row.
       SeeAlso
         matchingFieldPolytope
         weightMatrixCone
@@ -2158,14 +2157,14 @@ doc ///
       Key
         MatchingField
       Headline
-        the class of Matching fields
+        The class of Matching Fields
       Description
         Text
           A MatchingField is the common ancestor of Grassmannian Matching Fields @TO "GrMatchingField"@
           and partial flag Matching Fields @TO "FlMatchingField"@. A MatchingField is constructed with
           the function @TO "matchingField"@.
 
-          Two MatchingFields are said to be equal if and only if their tuples are the same.
+          Two MatchingFields are equal if and only if their tuples are the same.
 
           {\bf Technical details.}
           A MatchingField is derived from the class @TO "HashTable"@. Each
@@ -2175,13 +2174,13 @@ doc ///
               {"tupleMaxSize of type ZZ"},
               {"tupleSizeList of type List"},
               {"tupleMaxValue of type ZZ"},
-              {"tuples of type List, accessible with", TO {"getTuples"}},
+              {"tuples of type List, accessible with ", TO {"getTuples"}},
               {"cache"}
               }@
 
           Everything else, including: weight matrices; polynomial rings, maps and ideals; polyhedra
-          such as the weight matrix cone and matching field polytope, are all stored inside the cache.
-          Note that the package does not export the keys, such as tupleMaxSize or tupleMaxValue..
+          such as the weight matrix cone and matching field polytope, are stored inside the cache.
+          Note that the package does not export the keys, such as tupleMaxSize or tupleMaxValue.
           If you wish to directly address the contents of the
           GrMatchingField, then use "debug MatchingFields".
       SeeAlso
@@ -2216,7 +2215,7 @@ doc ///
               {"tupleMaxSize of type ZZ"},
               {"tupleSizeList of type List"},
               {"tupleMaxValue of type ZZ"},
-              {"tuples of type List, accessible with", TO {"getTuples"}},
+              {"tuples of type List, accessible with ", TO {"getTuples"}},
               {"cache"}
               }@
 
@@ -2236,7 +2235,7 @@ doc ///
       Key
         FlMatchingField
       Headline
-        the class of matching fields for partial flag varieties
+        The class of Matching Fields for partial flag varieties
       Description
         Text
           Common ways to define flag matching fields:
@@ -2255,7 +2254,7 @@ doc ///
               {"tupleSizeList of type List"},
               {"tupleMaxSize of type ZZ"},
               {"tupleMaxValue of type ZZ"},
-              {"tuples of type List, accessible with", TO {"getTuples"}},
+              {"tuples of type List, accessible with ", TO {"getTuples"}},
               {"cache"}
               }@
 
@@ -2280,7 +2279,7 @@ doc ///
         [matchingFieldFromPermutation, RowNum]
         [matchingFieldFromPermutation, ScalingCoefficient]
       Headline
-        matching field parametrised by permutations
+        Matching field parametrised by permutations
       Usage
         Lgr = matchingFieldFromPermutation(k, n, S)
         Lfl = matchingFieldFromPermutation(tupleSizeList, n, S)
@@ -2291,6 +2290,8 @@ doc ///
           positive integers; the sizes of the tuples of the flag matching field
         n: ZZ
           positive integer; the tuples have entries in 1 .. n
+        S: List
+          permutation of 1 .. n
         RowNum => ZZ
           which row of the digonal weight matrix to permute
         UsePrimePowers => Boolean
@@ -2304,13 +2305,15 @@ doc ///
         Lfl: FlMatchingField
       Description
         Text
-          Let $M_0 \in \RR^{k \times n}$ be a matrix that induced the diagonal matching field.
+          Let $M_0 \in \RR^{k \times n}$ be a matrix that induces the diagonal matching field.
           Usually, we take this matrix to be $(m_{i,j})$ with $m_{i,j} = (n-j)n^(i-2)$ if $i > 1$ and $m_{i,j} = 0$ if $i = 1$.
           Note that this matrix is different to the weight matrix of the matching field produced by the function @TO "diagonalMatchingField"@,
           however the matching fields are the same.
           Given a permutation $\sigma \in S_n$, the matching field associated to $\sigma$ has weight matrix
-          $M_\sigma$, which is the same as $M_0$ except in the second row, which is given by $\sigma(1), \sigma(2), \dots, \sigma(n)$.
-          If $\sigma = (n, n-1, \dots, 1) \in S_n$ is the permutation written in single-line notation, then the matching field induced by $M_\sigma$ is
+          $M_\sigma$, which is the same as $M_0$ except for the second row.
+          The second row of $M_\sigma$ is obtained from the second row of $M$ by permuting the entries according to $\sigma$.
+          Explicitly, they are given by $\sigma(1), \sigma(2), \dots, \sigma(n)$.
+          For instance, if $\sigma = (n, n-1, \dots, 1) \in S_n$ is the permutation written in single-line notation, then the matching field induced by $M_\sigma$ is
           the diagonal matching field.
         Example
           L0 = diagonalMatchingField(3, 6)
@@ -2758,7 +2761,7 @@ doc ///
 
           The linear span is a realisation of the algebraic matroid associated to the matching field.
           See the function @TO "algebraicMatroid"@.
-          Example
+        Example
           L = diagonalMatchingField(2, 4)
           linearSpanTropCone L
           algebraicMatroid L == matroid transpose gens linearSpanTropCone L
@@ -3301,7 +3304,7 @@ assert(zero I);
 ///
 
 -- non-coherent matching field ideal equals diagonal matching field ideal
-TEST ///
+TEST ///which
 S = subsets(1 .. 5, 3);
 S = {{2,1,3}} | delete({1,2,3}, S);
 L = grMatchingField(3, 5, S);
