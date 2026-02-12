@@ -5,8 +5,8 @@ newPackage(
     Version => "1.3",
     Date => "February 2, 2026",
     Authors => {
-	    {Name => "Oliver Clarke", Email => "oliver.clarke@durham.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
-	    },
+        {Name => "Oliver Clarke", Email => "oliver.clarke@durham.ac.uk", HomePage => "https://www.oliverclarkemath.com/"}
+        },
     Headline => "Toric degenerations of flag varieties via matching fields",
     Keywords => {"Flag Varieties"},
     DebuggingMode => false,
@@ -549,64 +549,6 @@ matchingFieldIdeal MatchingField := opts -> MF -> (
         );
     MF.cache.mfIdeal
     )
-
----------------------------------------------------
--- projective matching field ideal (unexported)
--- this is the ideal obtained by composing the
--- matching field rings map and the segre embedding
---
--- Note: the signs are not correct
--- 4ti2 Strategy only
--- assumes that the weight matrices of the grMatchingFields
---   are sub weight matrices of the flMatchingField
-
-projectiveMatchingFieldIdeal = method(
-    Options => {
-        Strategy => "4ti2", -- "FourTiTwo"
-        MonomialOrder => "default" -- monomial order for ambient rings (default or none)
-        }
-    )
-
-projectiveMatchingFieldIdeal(GrMatchingField) := opts -> MF -> (
-    matchingFieldIdeal(opts, MF)
-    )
-
-projectiveMatchingFieldIdeal(FlMatchingField) := opts -> MF -> (
-    if not MF.cache.?projMFIdeal then (
-        local monomialOrder;
-        if opts.MonomialOrder == "none" then (
-            monomialOrder = GRevLex;
-            ) else if opts.MonomialOrder == "default" then (
-            plueckerWeights := for grMF in getGrMatchingFields MF list (
-                plueckerWeight := getWeightPluecker grMF;
-                maxWeight := max plueckerWeight;
-                for weight in plueckerWeight list maxWeight - weight
-                );
-            monomialOrder = (Weights => fold(plueckerWeights, (W1, W2) -> flatten for w1 in W1 list for w2 in W2 list w1+w2));
-            ) else (
-            error("Unknown option: MonomialOrder => " | toString opts.MonomialOrder);
-            );
-        p := symbol p;
-        subsetList := for k in MF.tupleSizeList list subsets(1 .. MF.tupleMaxValue, k);
-        variableIndices := fold(subsetList, (S1, S2) -> flatten for s1 in S1 list for s2 in S2 list s1 | s2);
-        R := QQ[for variableIndex in variableIndices list p_(toSequence variableIndex), MonomialOrder => monomialOrder];
-        if opts.Strategy == "4ti2" then (
-            VList := for grMF in getGrMatchingFields MF list (
-                pointsMatrix := matchingFieldPolytopePoints(grMF, ExtraZeroRows => (MF.tupleMaxSize - grMF.tupleMaxSize));
-                for columnIndex from 0 to numColumns pointsMatrix -1 list pointsMatrix_{columnIndex}
-                );
-            VCols := fold(VList, (V1, V2) -> flatten for v1 in V1 list for v2 in V2 list v1+v2);
-            V := fold(VCols, (col1, col2) -> col1 | col2);
-            gensMatrix := gens toricGroebner(V, R);
-            MF.cache.projMFIdeal = ideal gensMatrix;
-            forceGB gens MF.cache.projMFIdeal;
-            ) else (
-            error("Unknown option: Strategy => " | toString opts.Strategy);
-            );
-        );
-    MF.cache.projMFIdeal
-    )
-
 
 -- Grassmannian ideal using the constructed pluecker variable ring
 -- Sets the weight of the polynomial ring to be the MF pluecker weight
